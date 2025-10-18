@@ -2,6 +2,8 @@
  const bcrypt = require('bcryptjs');
  const { v4: uuidv4 } = require('uuid');
  const { query } = require('../config/database');
+ const jwt = require('jsonwebtoken');
+
  const { generateAccessToken, generateRefreshToken } = require('../utils/jwt');
  exports.register = async (req, res, next) => {
  try {
@@ -18,17 +20,20 @@
  const user = { id, email, role };
  const accessToken = generateAccessToken(user);
  const refreshToken = generateRefreshToken(user);
+ 
  await query(
- 'INSERT INTO refresh_tokens (user_id,token,expires_at) VALUES($1,$2,NOW()+INTERVAL 
-[id,refreshToken]
- );
+  "INSERT INTO refresh_tokens (user_id,token,expires_at) VALUES($1,$2,NOW() + INTERVAL '7 days')",
+  [id, refreshToken]
+);
+
  res.status(201).json({ user:{id,name,email,role}, accessToken, refreshToken });
  } catch(err){ next(err); }
  };
  exports.login = async (req, res, next) => {
  try {
  const { email, password } = req.body;
- const result = await query('SELECT * FROM users WHERE email=$1 AND is_active=true',[e
+ const result = await query('SELECT * FROM users WHERE email=$1 AND is_active=true', [email]);
+
  if(!result.rows.length) return res.status(401).json({ error:'Invalid credentials' });
  const userRec = result.rows[0];
  const match = await bcrypt.compare(password,userRec.password_hash);
@@ -37,9 +42,10 @@
  const accessToken = generateAccessToken(user);
  const refreshToken = generateRefreshToken(user);
  await query(
- 'INSERT INTO refresh_tokens (user_id,token,expires_at) VALUES($1,$2,NOW()+INTERVAL 
-[user.id,refreshToken]
- );
+  "INSERT INTO refresh_tokens (user_id,token,expires_at) VALUES($1,$2,NOW() + INTERVAL '7 days')",
+  [userRec.id, refreshToken]
+);
+
  res.json({
  user:{id:userRec.id,name:userRec.name,email:userRec.email,role:userRec.role},
 accessToken, refreshToken
@@ -52,8 +58,10 @@ accessToken, refreshToken
  let payload;
  try{ payload = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET); }
  catch(e){ return res.status(403).json({ error:'Invalid refresh token' }); }
- const stored = await query('SELECT 1 FROM refresh_tokens WHERE token=$1 AND expires_a
- if(!stored.rows.length) return res.status(403).json({ error:'Invalid refresh token' }
+ const stored = await query('SELECT 1 FROM refresh_tokens WHERE token=$1 AND expires_at > NOW()', [refreshToken]);
+
+ if (!stored.rows.length) return res.status(403).json({ error:'Invalid refresh token' });
+
  const user = { id:payload.id, email:payload.email, role:payload.role };
  const accessToken = generateAccessToken(user);
  res.json({ accessToken });
