@@ -35,8 +35,13 @@ function TaskList() {
       };
       const { data } = await api.get('/api/tasks/search', { params });
       setTasks(data.tasks);
-      setPagination(prev => ({ ...prev, total: data.pagination.total, totalPages: data.pagination.totalPages }));
+      setPagination(prev => ({ 
+        ...prev, 
+        total: data.pagination.total, 
+        totalPages: data.pagination.totalPages 
+      }));
     } catch (error) {
+      console.error('Failed to fetch tasks:', error);
       toast.error('Failed to fetch tasks');
     } finally {
       setLoading(false);
@@ -54,12 +59,21 @@ function TaskList() {
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
-  if (loading) return <Loader />;
+  const handleTaskClick = (taskId) => {
+    navigate(`/tasks/${taskId}`);
+  };
+
+  if (loading && tasks.length === 0) return <Loader />;
 
   return (
     <div className="task-list-page">
       <div className="header">
-        <h2>Tasks</h2>
+        <div>
+          <h2>All Tasks</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+            {pagination.total} total tasks
+          </p>
+        </div>
         <button onClick={() => setShowCreateModal(true)} className="btn-primary">
           + Add Task
         </button>
@@ -69,10 +83,13 @@ function TaskList() {
 
       <div className="tasks-grid">
         {tasks.length === 0 ? (
-          <div className="empty-state">No tasks found</div>
+          <div className="empty-state">
+            <h3>No tasks found</h3>
+            <p>Try adjusting your filters or create a new task</p>
+          </div>
         ) : (
           tasks.map(task => (
-            <div key={task.id} onClick={() => navigate(`/tasks/${task.id}`)}>
+            <div key={task.id} onClick={() => handleTaskClick(task.id)}>
               <TaskCard task={task} />
             </div>
           ))
@@ -85,14 +102,16 @@ function TaskList() {
             disabled={pagination.page === 1}
             onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
           >
-            Previous
+            ← Previous
           </button>
-          <span>Page {pagination.page} of {pagination.totalPages}</span>
+          <span style={{ color: 'var(--text-secondary)' }}>
+            Page {pagination.page} of {pagination.totalPages}
+          </span>
           <button 
             disabled={pagination.page === pagination.totalPages}
             onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
           >
-            Next
+            Next →
           </button>
         </div>
       )}

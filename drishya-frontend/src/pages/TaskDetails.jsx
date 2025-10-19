@@ -6,7 +6,7 @@ import TaskForm from '../components/tasks/TaskForm';
 import Modal from '../components/common/Modal';
 import Loader from '../components/common/Loader';
 import { toast } from 'react-toastify';
-import { formatDate } from '../utils/formatters';
+import { formatDate, formatRelativeTime } from '../utils/formatters';
 
 function TaskDetails() {
   const { id } = useParams();
@@ -25,6 +25,7 @@ function TaskDetails() {
       const { data } = await api.get(`/api/tasks/${id}`);
       setTask(data.task);
     } catch (error) {
+      console.error('Failed to fetch task:', error);
       toast.error('Failed to fetch task');
       navigate('/tasks');
     } finally {
@@ -33,14 +34,15 @@ function TaskDetails() {
   };
 
   const handleDelete = async () => {
-    if (window.confirm('Are you sure you want to delete this task?')) {
-      try {
-        await api.delete(`/api/tasks/${id}`);
-        toast.success('Task deleted');
-        navigate('/tasks');
-      } catch (error) {
-        toast.error('Failed to delete task');
-      }
+    if (!window.confirm('Are you sure you want to delete this task?')) return;
+    
+    try {
+      await api.delete(`/api/tasks/${id}`);
+      toast.success('Task deleted successfully');
+      navigate('/tasks');
+    } catch (error) {
+      console.error('Failed to delete task:', error);
+      toast.error('Failed to delete task');
     }
   };
 
@@ -53,53 +55,120 @@ function TaskDetails() {
   if (loading) return <Loader />;
   if (!task) return <div>Task not found</div>;
 
+  const getPriorityColor = (priority) => {
+    const colors = {
+      Low: 'var(--success)',
+      Medium: 'var(--warning)',
+      High: 'var(--danger)'
+    };
+    return colors[priority] || 'var(--text-secondary)';
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      Todo: 'var(--info)',
+      'In Progress': 'var(--warning)',
+      Done: 'var(--success)'
+    };
+    return colors[status] || 'var(--text-secondary)';
+  };
+
   return (
-    <div className="task-details-page">
-      <div className="task-header">
-        <h2>{task.title}</h2>
-        <div className="actions">
-          <button onClick={() => setShowEditModal(true)} className="btn-secondary">
-            Edit
-          </button>
-          <button onClick={handleDelete} className="btn-danger">
-            Delete
-          </button>
+    <div style={{ maxWidth: '900px' }}>
+      <div style={{ marginBottom: '24px' }}>
+        <button onClick={() => navigate('/tasks')} className="btn-secondary" style={{ marginBottom: '16px' }}>
+          ← Back to Tasks
+        </button>
+        
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+          <div>
+            <h1 style={{ fontSize: '28px', marginBottom: '8px' }}>{task.title}</h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+              Created {formatRelativeTime(task.created_at)}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button onClick={() => setShowEditModal(true)} className="btn-primary">
+              Edit
+            </button>
+            <button onClick={handleDelete} className="btn-danger">
+              Delete
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="task-info">
-        <div className="info-item">
-          <label>Status:</label>
-          <span className={`status-badge ${task.status.toLowerCase()}`}>
-            {task.status}
-          </span>
+      <div className="card">
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+          gap: '24px',
+          marginBottom: '24px',
+          paddingBottom: '24px',
+          borderBottom: '1px solid var(--border-color)'
+        }}>
+          <div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: 600 }}>
+              STATUS
+            </div>
+            <span style={{ 
+              display: 'inline-block',
+              padding: '6px 12px',
+              background: getStatusColor(task.status) + '20',
+              color: getStatusColor(task.status),
+              borderRadius: 'var(--radius-md)',
+              fontSize: '14px',
+              fontWeight: 600
+            }}>
+              {task.status}
+            </span>
+          </div>
+          
+          <div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: 600 }}>
+              PRIORITY
+            </div>
+            <span style={{ 
+              display: 'inline-block',
+              padding: '6px 12px',
+              background: getPriorityColor(task.priority) + '20',
+              color: getPriorityColor(task.priority),
+              borderRadius: 'var(--radius-md)',
+              fontSize: '14px',
+              fontWeight: 600
+            }}>
+              {task.priority}
+            </span>
+          </div>
+          
+          <div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: 600 }}>
+              DUE DATE
+            </div>
+            <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 500 }}>
+              {task.due_date ? formatDate(task.due_date) : 'No due date'}
+            </div>
+          </div>
+          
+          <div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: 600 }}>
+              ASSIGNEE
+            </div>
+            <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 500 }}>
+              {task.assignee_id || 'Unassigned'}
+            </div>
+          </div>
         </div>
-        <div className="info-item">
-          <label>Priority:</label>
-          <span className={`priority-badge ${task.priority.toLowerCase()}`}>
-            {task.priority}
-          </span>
-        </div>
-        <div className="info-item">
-          <label>Due Date:</label>
-          <span>{task.due_date ? formatDate(task.due_date) : 'No due date'}</span>
-        </div>
-        <div className="info-item">
-          <label>Assignee:</label>
-          <span>{task.assignee_id || 'Unassigned'}</span>
-        </div>
-        <div className="info-item">
-          <label>Created:</label>
-          <span>{formatDate(task.created_at)}</span>
-        </div>
-      </div>
 
-      <div className="task-description">
-        <h3>Description</h3>
-        <p>{task.description || 'No description provided'}</p>
-      </div>
+        <div>
+          <h3 style={{ fontSize: '16px', marginBottom: '12px', fontWeight: 600 }}>Description</h3>
+          <p style={{ color: 'var(--text-primary)', lineHeight: '1.7' }}>
+            {task.description || 'No description provided'}
+          </p>
+        </div>
 
-      <CommentSection taskId={id} />
+        <CommentSection taskId={id} />
+      </div>
 
       <Modal 
         visible={showEditModal} 
