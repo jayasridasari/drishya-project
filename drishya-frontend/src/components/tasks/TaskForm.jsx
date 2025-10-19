@@ -9,7 +9,6 @@ function TaskForm({ task = null, onSuccess }) {
   const [teams, setTeams] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
-  // Prepare default values matching backend format
   const defaultValues = task ? {
     title: task.title || '',
     description: task.description || '',
@@ -43,7 +42,6 @@ function TaskForm({ task = null, onSuccess }) {
       setUsers(data.users || []);
     } catch (error) {
       console.error('Failed to fetch users:', error);
-      // Non-admin users might not have access
       setUsers([]);
     }
   };
@@ -60,58 +58,59 @@ function TaskForm({ task = null, onSuccess }) {
 
   const onSubmit = async (formData) => {
     console.log('=== TASK FORM SUBMISSION ===');
-    console.log('Form data received:', formData);
+    console.log('Raw form data:', formData);
     
     setSubmitting(true);
 
     try {
-      // Backend expects:
-      // - title (required, non-empty)
-      // - priority (required, one of: Low, Medium, High)
-      // - description (optional, defaults to empty string)
-      // - status (optional, defaults to 'Todo')
-      // - due_date (optional, ISO8601 format or null)
-      // - assignee_id (optional, UUID or null)
-      // - team_id (optional, UUID or null)
+      // Backend validation requirements:
+      // - title: required, non-empty
+      // - priority: required, one of: Low, Medium, High
+      // - description: optional, defaults to empty string
+      // - status: optional, defaults to 'Todo'
+      // - due_date: optional, ISO8601 format or null
+      // - assignee_id: optional, UUID or null
+      // - team_id: optional, UUID or null
 
       const payload = {
         title: formData.title.trim(),
         description: formData.description?.trim() || '',
         status: formData.status,
         priority: formData.priority,
-        // CRITICAL: Convert empty string to null, or keep ISO date format
-        due_date: formData.due_date ? formData.due_date : null,
-        // CRITICAL: Convert empty string to null for UUIDs
+        // CRITICAL: Empty string becomes null
+        due_date: formData.due_date || null,
         assignee_id: formData.assignee_id || null,
         team_id: formData.team_id || null
       };
 
-      console.log('Payload to send:', payload);
+      console.log('Payload being sent:', payload);
 
       let response;
       if (isEdit) {
-        console.log(`PUT /api/tasks/${task.id}`);
+        console.log(`Calling PUT /api/tasks/${task.id}`);
         response = await api.put(`/api/tasks/${task.id}`, payload);
         console.log('Update response:', response.data);
-        toast.success('Task updated successfully!');
+        toast.success('Task updated successfully! ✅');
       } else {
-        console.log('POST /api/tasks');
+        console.log('Calling POST /api/tasks');
         response = await api.post('/api/tasks', payload);
         console.log('Create response:', response.data);
-        toast.success('Task created successfully!');
+        toast.success('Task created successfully! ✅');
       }
       
+      console.log('✅ Task saved, calling onSuccess callback');
       onSuccess();
+      
     } catch (error) {
-      console.error('=== TASK FORM ERROR ===');
-      console.error('Error:', error);
-      console.error('Response:', error.response);
+      console.error('=== TASK SAVE ERROR ===');
+      console.error('Error object:', error);
+      console.error('Response status:', error.response?.status);
       console.error('Response data:', error.response?.data);
       
-      // Handle express-validator errors
+      // Handle validation errors from express-validator
       if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        console.error('Validation errors:', error.response.data.errors);
         error.response.data.errors.forEach(err => {
-          console.error('Validation error:', err);
           toast.error(`${err.param}: ${err.msg}`);
         });
       } 
@@ -121,11 +120,13 @@ function TaskForm({ task = null, onSuccess }) {
       } 
       // Network errors
       else if (error.request) {
-        toast.error('Cannot connect to server. Is your backend running on port 5000?');
+        toast.error('Cannot connect to server. Is backend running?');
+        console.error('No response received from server');
       } 
       // Other errors
       else {
         toast.error('Failed to save task. Please try again.');
+        console.error('Error:', error.message);
       }
     } finally {
       setSubmitting(false);
@@ -141,6 +142,7 @@ function TaskForm({ task = null, onSuccess }) {
           {...register('title', { required: 'Title is required' })} 
           type="text" 
           placeholder="Enter task title"
+          autoComplete="off"
         />
         {errors.title && <span className="error">{errors.title.message}</span>}
       </div>
@@ -185,6 +187,9 @@ function TaskForm({ task = null, onSuccess }) {
             type="date"
             min={new Date().toISOString().split('T')[0]}
           />
+          <small style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+            Leave empty for no due date
+          </small>
         </div>
 
         <div className="form-group">
@@ -193,7 +198,7 @@ function TaskForm({ task = null, onSuccess }) {
             <option value="">Unassigned</option>
             {users.map(user => (
               <option key={user.id} value={user.id}>
-                {user.name} ({user.email})
+                {user.name}
               </option>
             ))}
           </select>
@@ -210,13 +215,24 @@ function TaskForm({ task = null, onSuccess }) {
         </select>
       </div>
 
+      <div style={{ 
+        padding: '12px', 
+        background: 'var(--bg-primary)', 
+        borderRadius: 'var(--radius-md)',
+        marginBottom: '16px',
+        fontSize: '13px',
+        color: 'var(--text-secondary)'
+      }}>
+        ℹ️ <strong>Note:</strong> Title and Priority are required. All other fields are optional.
+      </div>
+
       <button 
         type="submit" 
         disabled={submitting} 
         className="btn-primary" 
-        style={{ width: '100%', marginTop: '8px' }}
+        style={{ width: '100%' }}
       >
-        {submitting ? 'Saving...' : isEdit ? 'Update Task' : 'Create Task'}
+        {submitting ? (isEdit ? 'Updating Task...' : 'Creating Task...') : (isEdit ? 'Update Task' : 'Create Task')}
       </button>
     </form>
   );

@@ -31,32 +31,55 @@ function TaskList() {
   }, [filters, pagination.page]);
 
   const fetchTasks = async () => {
+    console.log('=== FETCHING TASKS ===');
+    console.log('Filters:', filters);
+    console.log('Page:', pagination.page);
+    
     try {
       setLoading(true);
+      
+      // Build query params - only add non-empty values
       const params = {
         page: pagination.page,
         limit: pagination.limit,
       };
 
-      // Only add non-empty filters
-      if (filters.search) params.search = filters.search;
-      if (filters.priority) params.priority = filters.priority;
-      if (filters.status) params.status = filters.status;
-      if (filters.assignee) params.assignee = filters.assignee;
+      if (filters.search && filters.search.trim()) {
+        params.search = filters.search.trim();
+      }
+      if (filters.priority) {
+        params.priority = filters.priority;
+      }
+      if (filters.status) {
+        params.status = filters.status;
+      }
+      if (filters.assignee) {
+        params.assignee = filters.assignee;
+      }
 
-      console.log('Fetching tasks with params:', params);
+      console.log('API params:', params);
+      console.log('Calling GET /api/tasks/search');
+      
       const { data } = await api.get('/api/tasks/search', { params });
-      console.log('Tasks fetched:', data);
+      
+      console.log('Tasks response:', data);
+      console.log('Tasks count:', data.tasks?.length || 0);
       
       setTasks(data.tasks || []);
-      setPagination(prev => ({ 
-        ...prev, 
-        total: data.pagination?.total || 0, 
-        totalPages: data.pagination?.totalPages || 1
-      }));
+      
+      if (data.pagination) {
+        setPagination(prev => ({ 
+          ...prev, 
+          total: data.pagination.total || 0, 
+          totalPages: data.pagination.totalPages || 1
+        }));
+      }
+      
     } catch (error) {
-      console.error('Failed to fetch tasks:', error);
-      console.error('Error response:', error.response?.data);
+      console.error('=== TASK FETCH ERROR ===');
+      console.error('Error:', error);
+      console.error('Response:', error.response?.data);
+      
       toast.error('Failed to load tasks');
       setTasks([]);
     } finally {
@@ -65,6 +88,7 @@ function TaskList() {
   };
 
   const handleTaskCreated = () => {
+    console.log('✅ Task created, refreshing list...');
     setShowCreateModal(false);
     setPagination(prev => ({ ...prev, page: 1 }));
     fetchTasks();
@@ -106,7 +130,7 @@ function TaskList() {
                 <h3>No tasks found</h3>
                 <p>
                   {Object.values(filters).some(f => f) 
-                    ? 'Try adjusting your filters' 
+                    ? 'Try adjusting your filters or create a new task' 
                     : 'Create your first task to get started'}
                 </p>
                 {!Object.values(filters).some(f => f) && (

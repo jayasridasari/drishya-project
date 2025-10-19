@@ -7,6 +7,7 @@ import { formatDate } from '../utils/formatters';
 function Profile() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   
   // Profile form state
@@ -27,26 +28,56 @@ function Profile() {
 
   const fetchProfile = async () => {
     console.log('=== FETCHING PROFILE ===');
+    setLoading(true);
+    setError(null);
+    
     try {
-      setLoading(true);
-      const { data } = await api.get('/api/profile');
-      console.log('Profile data received:', data);
+      console.log('Calling GET /api/profile');
+      const response = await api.get('/api/profile');
+      console.log('Profile response:', response);
+      console.log('Profile data:', response.data);
       
-      if (data.profile) {
-        setProfile(data.profile);
-        setProfileForm({
-          name: data.profile.name || '',
-          email: data.profile.email || ''
-        });
-      } else {
-        console.error('No profile data in response');
-        toast.error('Failed to load profile data');
+      if (!response.data) {
+        throw new Error('No data in response');
       }
+      
+      if (!response.data.profile) {
+        throw new Error('No profile in response data');
+      }
+      
+      const profileData = response.data.profile;
+      console.log('Profile loaded:', profileData);
+      
+      setProfile(profileData);
+      setProfileForm({
+        name: profileData.name || '',
+        email: profileData.email || ''
+      });
+      
     } catch (error) {
       console.error('=== PROFILE FETCH ERROR ===');
-      console.error('Error:', error);
-      console.error('Response:', error.response?.data);
-      toast.error('Failed to load profile');
+      console.error('Error object:', error);
+      console.error('Response:', error.response);
+      console.error('Response data:', error.response?.data);
+      console.error('Status:', error.response?.status);
+      
+      let errorMessage = 'Failed to load profile';
+      
+      if (error.response?.status === 401) {
+        errorMessage = 'Session expired. Please login again.';
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+      } else if (error.response?.status === 403) {
+        errorMessage = 'Access denied';
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.request) {
+        errorMessage = 'Cannot connect to server';
+      }
+      
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -70,41 +101,30 @@ function Profile() {
     setProfileUpdating(true);
 
     try {
-      // Backend expects ONLY fields that are being updated
-      // It uses optional validation: name and email are optional
       const payload = {
         name: profileForm.name.trim(),
         email: profileForm.email.trim()
       };
       
       console.log('Sending profile update:', payload);
-      const { data } = await api.put('/api/profile', payload);
-      console.log('Profile update response:', data);
+      const response = await api.put('/api/profile', payload);
+      console.log('Profile update response:', response.data);
       
       toast.success('Profile updated successfully!');
-      await fetchProfile(); // Refresh profile data
+      await fetchProfile();
     } catch (error) {
       console.error('=== PROFILE UPDATE ERROR ===');
-      console.error('Error:', error);
       console.error('Response:', error.response?.data);
       
-      // Handle express-validator errors
       if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
         error.response.data.errors.forEach(err => {
-          console.error('Validation error:', err);
           toast.error(`${err.param}: ${err.msg}`);
         });
-      } 
-      // Handle single error message
-      else if (error.response?.data?.error) {
+      } else if (error.response?.data?.error) {
         toast.error(error.response.data.error);
-      }
-      // Network error
-      else if (error.request) {
-        toast.error('Cannot connect to server. Is your backend running on port 5000?');
-      }
-      // Other errors
-      else {
+      } else if (error.request) {
+        toast.error('Cannot connect to server');
+      } else {
         toast.error('Failed to update profile');
       }
     } finally {
@@ -135,16 +155,14 @@ function Profile() {
     setPasswordUpdating(true);
 
     try {
-      // Backend expects: currentPassword and newPassword
-      // Validation: newPassword must be min 8 characters
       const payload = {
         currentPassword: passwordForm.currentPassword,
         newPassword: passwordForm.newPassword
       };
       
-      console.log('Sending password update (not logging passwords for security)');
-      const { data } = await api.put('/api/profile/password', payload);
-      console.log('Password update response:', data);
+      console.log('Updating password...');
+      const response = await api.put('/api/profile/password', payload);
+      console.log('Password update response:', response.data);
       
       toast.success('Password updated successfully!');
       setPasswordForm({
@@ -155,26 +173,17 @@ function Profile() {
       setShowPasswordForm(false);
     } catch (error) {
       console.error('=== PASSWORD UPDATE ERROR ===');
-      console.error('Error:', error);
       console.error('Response:', error.response?.data);
       
-      // Handle express-validator errors
       if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
         error.response.data.errors.forEach(err => {
-          console.error('Validation error:', err);
           toast.error(`${err.param}: ${err.msg}`);
         });
-      }
-      // Handle single error (e.g., "Current password is incorrect")
-      else if (error.response?.data?.error) {
+      } else if (error.response?.data?.error) {
         toast.error(error.response.data.error);
-      }
-      // Network error
-      else if (error.request) {
-        toast.error('Cannot connect to server. Is your backend running on port 5000?');
-      }
-      // Other errors
-      else {
+      } else if (error.request) {
+        toast.error('Cannot connect to server');
+      } else {
         toast.error('Failed to update password');
       }
     } finally {
@@ -182,12 +191,29 @@ function Profile() {
     }
   };
 
-  if (loading) return <Loader />;
-  if (!profile) {
+  if (loading) {
+    return <Loader />;
+  }
+
+  if (error) {
     return (
       <div className="empty-state">
         <h3>Failed to load profile</h3>
-        <button onClick={fetchProfile} className="btn-primary">Retry</button>
+        <p>{error}</p>
+        <button onClick={fetchProfile} className="btn-primary" style={{ marginTop: '16px' }}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="empty-state">
+        <h3>Profile not found</h3>
+        <button onClick={fetchProfile} className="btn-primary" style={{ marginTop: '16px' }}>
+          Retry
+        </button>
       </div>
     );
   }
