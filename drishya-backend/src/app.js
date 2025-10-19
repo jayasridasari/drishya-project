@@ -13,6 +13,7 @@
  const kanbanRoutes = require('./routes/kanban.routes');
  const dashboardRoutes = require('./routes/dashboard.routes');
  const notificationRoutes = require('./routes/notification.routes');
+ const profileRoutes = require('./routes/profile.routes');
  const app = express();
  // Security & Middleware
  app.use(helmet());
@@ -29,6 +30,7 @@ app.get('/health', (req, res) => res.json({ status: 'OK' }));
  // Routes
  app.use('/api/auth', authRoutes);
  app.use('/api/tasks', taskRoutes);
+ app.use('/api/profile', profileRoutes);
  app.use('/api/users', userRoutes);
  app.use('/api/teams', teamRoutes);
  app.use('/api/kanban', kanbanRoutes);

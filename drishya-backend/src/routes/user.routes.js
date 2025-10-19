@@ -5,47 +5,75 @@ const { handleValidation } = require('../middleware/validation');
 const UserController = require('../controllers/user.controller');
 const router = express.Router();
 
-// Admin user management
-router.get('/', authenticate, requireAdmin, UserController.getAll);
+// =====================================
+// CRITICAL: Specific routes MUST come BEFORE parameterized routes!
+// Order matters: /me BEFORE /:id
+// =====================================
 
-router.get('/:id',
-  authenticate, requireAdmin,
-  param('id').isUUID(),
-  handleValidation,
-  UserController.getById
-);
+// ----------------
+// SELF PROFILE ROUTES (Must be FIRST!)
+// ----------------
 
-router.put('/:id',
-  authenticate, requireAdmin,
-  param('id').isUUID(),
-  body('role').optional().isIn(['admin','member']),
-  body('is_active').optional().isBoolean(),
-  handleValidation,
-  UserController.updateUser
-);
-
-router.delete('/:id',
-  authenticate, requireAdmin,
-  param('id').isUUID(),
-  handleValidation,
-  UserController.deleteUser
-);
-
-// Self profile
+// GET /api/users/me - Get own profile
 router.get('/me', authenticate, UserController.getProfile);
 
-router.put('/me', authenticate,
-  body('name').optional().trim().notEmpty(),
-  body('email').optional().isEmail().normalizeEmail(),
+// PUT /api/users/me - Update own profile
+router.put(
+  '/me',
+  authenticate,
+  body('name').trim().notEmpty().withMessage('Name is required'),
+  body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
   handleValidation,
   UserController.updateProfile
 );
 
-router.put('/me/password', authenticate,
-  body('currentPassword').notEmpty(),
-  body('newPassword').isLength({ min: 8 }),
+// PUT /api/users/me/password - Change password
+router.put(
+  '/me/password',
+  authenticate,
+  body('currentPassword').notEmpty().withMessage('Current password is required'),
+  body('newPassword').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
   handleValidation,
   UserController.changePassword
+);
+
+// ----------------
+// ADMIN USER MANAGEMENT ROUTES (After /me routes)
+// ----------------
+
+// GET /api/users - Get all users (Admin only)
+router.get('/', authenticate, requireAdmin, UserController.getAll);
+
+// GET /api/users/:id - Get user by ID (Admin only)
+router.get(
+  '/:id',
+  authenticate,
+  requireAdmin,
+  param('id').isUUID().withMessage('Invalid user ID'),
+  handleValidation,
+  UserController.getById
+);
+
+// PUT /api/users/:id - Update user (Admin only)
+router.put(
+  '/:id',
+  authenticate,
+  requireAdmin,
+  param('id').isUUID().withMessage('Invalid user ID'),
+  body('role').optional().isIn(['admin', 'member']).withMessage('Role must be admin or member'),
+  body('is_active').optional().isBoolean().withMessage('is_active must be boolean'),
+  handleValidation,
+  UserController.updateUser
+);
+
+// DELETE /api/users/:id - Delete user (Admin only)
+router.delete(
+  '/:id',
+  authenticate,
+  requireAdmin,
+  param('id').isUUID().withMessage('Invalid user ID'),
+  handleValidation,
+  UserController.deleteUser
 );
 
 module.exports = router;
