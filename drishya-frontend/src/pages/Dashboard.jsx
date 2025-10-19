@@ -2,24 +2,64 @@ import { useState, useEffect } from 'react';
 import api from '../services/api';
 import PriorityChart from '../components/charts/PriorityChart';
 import TaskCompletionChart from '../components/charts/TaskCompletionChart';
+import Loader from '../components/common/Loader';
 
 function Dashboard() {
   const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/api/dashboard/stats').then(({ data }) => setStats(data));
+    fetchStats();
   }, []);
 
-  if (!stats) return <div>Loading...</div>;
+  const fetchStats = async () => {
+    try {
+      const { data } = await api.get('/api/dashboard/stats');
+      setStats(data);
+    } catch (error) {
+      console.error('Failed to fetch dashboard stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) return <Loader />;
+  if (!stats) return <div>Failed to load dashboard</div>;
 
   return (
-    <div>
+    <div className="dashboard-page">
       <h2>Dashboard</h2>
-      <div>Total Tasks: {stats.total}</div>
-      <div>Overdue: {stats.overdue}</div>
-      <div>Due This Week: {stats.dueThisWeek}</div>
-      <PriorityChart data={stats.byPriority} />
-      <TaskCompletionChart data={stats.byStatus} />
+      
+      <div className="stats-grid">
+        <div className="stat-card">
+          <h3>Total Tasks</h3>
+          <p className="stat-number">{stats.total}</p>
+        </div>
+        <div className="stat-card danger">
+          <h3>Overdue</h3>
+          <p className="stat-number">{stats.overdue}</p>
+        </div>
+        <div className="stat-card warning">
+          <h3>Due This Week</h3>
+          <p className="stat-number">{stats.dueThisWeek}</p>
+        </div>
+      </div>
+
+      <div className="charts-container">
+        {stats.byPriority && stats.byPriority.length > 0 && (
+          <div className="chart-card">
+            <h3>Task Priority Distribution</h3>
+            <PriorityChart data={stats.byPriority} />
+          </div>
+        )}
+
+        {stats.byStatus && stats.byStatus.length > 0 && (
+          <div className="chart-card">
+            <h3>Tasks by Status</h3>
+            <TaskCompletionChart data={stats.byStatus} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
