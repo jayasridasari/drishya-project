@@ -12,8 +12,7 @@
  handleValidation,
  AuthController.register
  );
- router.post(
- '/login',
+ router.post('/login',
  body('email').isEmail().normalizeEmail(),
  body('password').notEmpty(),
  handleValidation,
