@@ -1,6 +1,12 @@
-import { Outlet, Navigate } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 
 export default function PrivateRoute() {
-  const isAuth = !!localStorage.getItem('refreshToken');
-  return isAuth ? <Outlet /> : <Navigate to="/login" />;
+  const refreshToken = localStorage.getItem('refreshToken');
+  const user = localStorage.getItem('user');
+  
+  if (!refreshToken || !user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <Outlet />;
 }

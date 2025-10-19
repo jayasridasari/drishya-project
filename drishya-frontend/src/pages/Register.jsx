@@ -5,77 +5,38 @@ import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import api, { setAccessToken } from '../services/api';
 
-// Validation schema matching backend requirements
 const registerSchema = yup.object({
-  email: yup
-    .string()
-    .email('Invalid email format')
-    .required('Email is required'),
-  password: yup
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .required('Password is required'),
-  role: yup
-    .string()
-    .oneOf(['admin', 'member'], 'Role must be admin or member')
-    .required('Role is required'),
+  email: yup.string().email('Invalid email').required('Email is required'),
+  password: yup.string().min(8, 'Password must be at least 8 characters').required('Password is required'),
+  role: yup.string().oneOf(['admin', 'member']).required('Role is required'),
 });
 
 function Register() {
   const navigate = useNavigate();
   
-  const { 
-    register, 
-    handleSubmit, 
-    formState: { errors, isSubmitting } 
-  } = useForm({
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
     resolver: yupResolver(registerSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-      role: 'member' // Default to member
-    }
+    defaultValues: { email: '', password: '', role: 'member' }
   });
 
   const onSubmit = async (formData) => {
     try {
-      // API call matches backend: POST /api/auth/register
-      // Backend expects: { email, password, role }
-      // Backend returns: { user: { id, name, email, role }, accessToken, refreshToken }
       const response = await api.post('/api/auth/register', formData);
-      
       const { user, accessToken, refreshToken } = response.data;
       
-      // Store authentication data
       setAccessToken(accessToken);
       localStorage.setItem('refreshToken', refreshToken);
       localStorage.setItem('user', JSON.stringify(user));
       
-      toast.success(`Welcome ${user.name}! Registration successful.`);
+      toast.success(`Welcome ${user.name}! Your account has been created.`);
       navigate('/');
-      
     } catch (error) {
-      console.error('Registration error:', error);
-      
-      if (error.response) {
-        // Backend returned an error
-        const errorData = error.response.data;
-        
-        // Handle validation errors from express-validator
-        if (errorData.errors && Array.isArray(errorData.errors)) {
-          errorData.errors.forEach(err => {
-            toast.error(`${err.param}: ${err.msg}`);
-          });
-        } 
-        // Handle single error message
-        else if (errorData.error) {
-          toast.error(errorData.error);
-        } 
-        else {
-          toast.error('Registration failed. Please try again.');
-        }
+      if (error.response?.data?.errors) {
+        error.response.data.errors.forEach(err => toast.error(`${err.param}: ${err.msg}`));
+      } else if (error.response?.data?.error) {
+        toast.error(error.response.data.error);
       } else if (error.request) {
-        toast.error('Cannot connect to server. Please check if the backend is running on port 5000.');
+        toast.error('Cannot connect to server. Check if backend is running on port 5000.');
       } else {
         toast.error(`Registration failed: ${error.message}`);
       }
@@ -85,24 +46,23 @@ function Register() {
   return (
     <div className="auth-page">
       <form onSubmit={handleSubmit(onSubmit)} className="auth-form">
-        <h2>Register for TaskFlow</h2>
+        <h2>Create Account</h2>
+        <p className="subtitle">Start managing your tasks efficiently</p>
         
         <div className="form-group">
-          <label htmlFor="email">Email Address *</label>
+          <label htmlFor="email">Email Address</label>
           <input
             id="email"
             type="email"
             {...register('email')}
-            placeholder="your.email@example.com"
+            placeholder="you@example.com"
             autoComplete="email"
           />
-          {errors.email && (
-            <span className="error">{errors.email.message}</span>
-          )}
+          {errors.email && <span className="error">{errors.email.message}</span>}
         </div>
 
         <div className="form-group">
-          <label htmlFor="password">Password *</label>
+          <label htmlFor="password">Password</label>
           <input
             id="password"
             type="password"
@@ -110,32 +70,24 @@ function Register() {
             placeholder="Minimum 8 characters"
             autoComplete="new-password"
           />
-          {errors.password && (
-            <span className="error">{errors.password.message}</span>
-          )}
+          {errors.password && <span className="error">{errors.password.message}</span>}
         </div>
 
         <div className="form-group">
-          <label htmlFor="role">Role *</label>
+          <label htmlFor="role">Role</label>
           <select id="role" {...register('role')}>
             <option value="member">Member</option>
             <option value="admin">Admin</option>
           </select>
-          {errors.role && (
-            <span className="error">{errors.role.message}</span>
-          )}
+          {errors.role && <span className="error">{errors.role.message}</span>}
         </div>
 
-        <button 
-          type="submit" 
-          disabled={isSubmitting} 
-          className="btn-primary"
-        >
-          {isSubmitting ? 'Creating Account...' : 'Register'}
+        <button type="submit" disabled={isSubmitting} className="btn-primary" style={{ width: '100%' }}>
+          {isSubmitting ? 'Creating Account...' : 'Create Account'}
         </button>
 
         <p className="auth-link">
-          Already have an account? <Link to="/login">Login here</Link>
+          Already have an account? <Link to="/login">Sign in</Link>
         </p>
       </form>
     </div>

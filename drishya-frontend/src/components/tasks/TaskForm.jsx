@@ -1,9 +1,19 @@
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { taskSchema } from '../../utils/validation';
+import * as yup from 'yup';
 import api from '../../services/api';
 import { toast } from 'react-toastify';
 import { useState, useEffect } from 'react';
+
+const taskSchema = yup.object({
+  title: yup.string().required('Title is required').max(255, 'Title too long'),
+  description: yup.string(),
+  status: yup.string().oneOf(['Todo', 'In Progress', 'Done']).required(),
+  priority: yup.string().oneOf(['Low', 'Medium', 'High']).required(),
+  due_date: yup.date().nullable(),
+  assignee_id: yup.string().nullable(),
+  team_id: yup.string().nullable()
+});
 
 function TaskForm({ task = null, onSuccess }) {
   const isEdit = !!task;
@@ -48,10 +58,18 @@ function TaskForm({ task = null, onSuccess }) {
 
   const onSubmit = async (data) => {
     try {
+      // Convert empty strings to null for optional fields
+      const payload = {
+        ...data,
+        assignee_id: data.assignee_id || null,
+        team_id: data.team_id || null,
+        due_date: data.due_date || null
+      };
+
       if (isEdit) {
-        await api.put(`/api/tasks/${task.id}`, data);
+        await api.put(`/api/tasks/${task.id}`, payload);
       } else {
-        await api.post('/api/tasks', data);
+        await api.post('/api/tasks', payload);
       }
       onSuccess();
     } catch (error) {
@@ -70,7 +88,6 @@ function TaskForm({ task = null, onSuccess }) {
       <div className="form-group">
         <label>Description</label>
         <textarea {...register('description')} rows="4" placeholder="Task description" />
-        {errors.description && <span className="error">{errors.description.message}</span>}
       </div>
 
       <div className="form-row">
@@ -81,7 +98,6 @@ function TaskForm({ task = null, onSuccess }) {
             <option value="In Progress">In Progress</option>
             <option value="Done">Done</option>
           </select>
-          {errors.status && <span className="error">{errors.status.message}</span>}
         </div>
 
         <div className="form-group">
@@ -91,7 +107,6 @@ function TaskForm({ task = null, onSuccess }) {
             <option value="Medium">Medium</option>
             <option value="High">High</option>
           </select>
-          {errors.priority && <span className="error">{errors.priority.message}</span>}
         </div>
       </div>
 
@@ -99,7 +114,6 @@ function TaskForm({ task = null, onSuccess }) {
         <div className="form-group">
           <label>Due Date</label>
           <input {...register('due_date')} type="date" />
-          {errors.due_date && <span className="error">{errors.due_date.message}</span>}
         </div>
 
         <div className="form-group">
@@ -107,7 +121,7 @@ function TaskForm({ task = null, onSuccess }) {
           <select {...register('assignee_id')}>
             <option value="">Unassigned</option>
             {users.map(user => (
-              <option key={user.id} value={user.id}>{user.name} ({user.email})</option>
+              <option key={user.id} value={user.id}>{user.name}</option>
             ))}
           </select>
         </div>
@@ -123,11 +137,9 @@ function TaskForm({ task = null, onSuccess }) {
         </select>
       </div>
 
-      <div className="form-actions">
-        <button type="submit" disabled={isSubmitting} className="btn-primary">
-          {isSubmitting ? 'Saving...' : isEdit ? 'Update Task' : 'Create Task'}
-        </button>
-      </div>
+      <button type="submit" disabled={isSubmitting} className="btn-primary" style={{ width: '100%' }}>
+        {isSubmitting ? 'Saving...' : isEdit ? 'Update Task' : 'Create Task'}
+      </button>
     </form>
   );
 }

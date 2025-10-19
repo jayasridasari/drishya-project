@@ -19,7 +19,7 @@ function TaskFilters({ filters, onFilterChange }) {
     <div className="task-filters">
       <input
         type="text"
-        placeholder="Search tasks..."
+        placeholder="🔍 Search tasks..."
         value={localFilters.search}
         onChange={(e) => handleChange('search', e.target.value)}
         className="search-input"
@@ -28,6 +28,7 @@ function TaskFilters({ filters, onFilterChange }) {
       <select 
         value={localFilters.priority} 
         onChange={(e) => handleChange('priority', e.target.value)}
+        className="btn-secondary"
       >
         <option value="">All Priorities</option>
         <option value="Low">Low</option>
@@ -38,6 +39,7 @@ function TaskFilters({ filters, onFilterChange }) {
       <select 
         value={localFilters.status} 
         onChange={(e) => handleChange('status', e.target.value)}
+        className="btn-secondary"
       >
         <option value="">All Statuses</option>
         <option value="Todo">Todo</option>
@@ -46,7 +48,7 @@ function TaskFilters({ filters, onFilterChange }) {
       </select>
 
       <button onClick={handleReset} className="btn-secondary">
-        Reset Filters
+        Reset
       </button>
     </div>
   );

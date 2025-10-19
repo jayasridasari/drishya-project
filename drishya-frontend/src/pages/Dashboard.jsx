@@ -7,6 +7,7 @@ import Loader from '../components/common/Loader';
 function Dashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
 
   useEffect(() => {
     fetchStats();
@@ -28,20 +29,31 @@ function Dashboard() {
 
   return (
     <div className="dashboard-page">
-      <h2>Dashboard</h2>
+      <div className="page-header">
+        <h1>Project Dashboard</h1>
+        <p>Manage your tasks and track progress</p>
+      </div>
       
       <div className="stats-grid">
         <div className="stat-card">
           <h3>Total Tasks</h3>
           <p className="stat-number">{stats.total}</p>
         </div>
+        <div className="stat-card warning">
+          <h3>In Progress</h3>
+          <p className="stat-number">
+            {stats.byStatus?.find(s => s.status === 'In Progress')?.count || 0}
+          </p>
+        </div>
+        <div className="stat-card success">
+          <h3>Completed</h3>
+          <p className="stat-number">
+            {stats.byStatus?.find(s => s.status === 'Done')?.count || 0}
+          </p>
+        </div>
         <div className="stat-card danger">
           <h3>Overdue</h3>
           <p className="stat-number">{stats.overdue}</p>
-        </div>
-        <div className="stat-card warning">
-          <h3>Due This Week</h3>
-          <p className="stat-number">{stats.dueThisWeek}</p>
         </div>
       </div>
 
@@ -55,7 +67,7 @@ function Dashboard() {
 
         {stats.byStatus && stats.byStatus.length > 0 && (
           <div className="chart-card">
-            <h3>Tasks by Status</h3>
+            <h3>Weekly Task Completion</h3>
             <TaskCompletionChart data={stats.byStatus} />
           </div>
         )}

@@ -1,16 +1,19 @@
-import { Outlet, Navigate } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 
 export default function AdminRoute() {
   const userStr = localStorage.getItem('user');
   
   if (!userStr) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" replace />;
   }
   
   try {
     const user = JSON.parse(userStr);
-    return user && user.role === 'admin' ? <Outlet /> : <Navigate to="/" />;
+    if (user.role !== 'admin') {
+      return <Navigate to="/" replace />;
+    }
+    return <Outlet />;
   } catch {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" replace />;
   }
 }
