@@ -19,17 +19,34 @@ function Login() {
   });
 
   const onSubmit = async (formData) => {
+    console.log('=== LOGIN ATTEMPT ===');
+    console.log('Email:', formData.email);
+    
     try {
       const response = await api.post('/api/auth/login', formData);
+      console.log('Login response:', response.data);
+      
       const { user, accessToken, refreshToken } = response.data;
       
+      // CRITICAL: Set access token IMMEDIATELY
       setAccessToken(accessToken);
+      
+      // Store in localStorage
       localStorage.setItem('refreshToken', refreshToken);
       localStorage.setItem('user', JSON.stringify(user));
       
+      console.log('✅ Login successful');
+      console.log('User:', user);
+      
       toast.success(`Welcome back, ${user.name}!`);
-      navigate('/');
+      
+      // Navigate to dashboard
+      navigate('/', { replace: true });
     } catch (error) {
+      console.error('=== LOGIN ERROR ===');
+      console.error('Error:', error);
+      console.error('Response:', error.response?.data);
+      
       if (error.response?.data?.errors) {
         error.response.data.errors.forEach(err => toast.error(`${err.param}: ${err.msg}`));
       } else if (error.response?.data?.error) {

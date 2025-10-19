@@ -18,7 +18,12 @@ function TaskList() {
     status: '',
     assignee: ''
   });
-  const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0 });
+  const [pagination, setPagination] = useState({ 
+    page: 1, 
+    limit: 50, 
+    total: 0,
+    totalPages: 1
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -31,18 +36,29 @@ function TaskList() {
       const params = {
         page: pagination.page,
         limit: pagination.limit,
-        ...filters
       };
+
+      // Only add non-empty filters
+      if (filters.search) params.search = filters.search;
+      if (filters.priority) params.priority = filters.priority;
+      if (filters.status) params.status = filters.status;
+      if (filters.assignee) params.assignee = filters.assignee;
+
+      console.log('Fetching tasks with params:', params);
       const { data } = await api.get('/api/tasks/search', { params });
-      setTasks(data.tasks);
+      console.log('Tasks fetched:', data);
+      
+      setTasks(data.tasks || []);
       setPagination(prev => ({ 
         ...prev, 
-        total: data.pagination.total, 
-        totalPages: data.pagination.totalPages 
+        total: data.pagination?.total || 0, 
+        totalPages: data.pagination?.totalPages || 1
       }));
     } catch (error) {
       console.error('Failed to fetch tasks:', error);
-      toast.error('Failed to fetch tasks');
+      console.error('Error response:', error.response?.data);
+      toast.error('Failed to load tasks');
+      setTasks([]);
     } finally {
       setLoading(false);
     }
@@ -50,11 +66,12 @@ function TaskList() {
 
   const handleTaskCreated = () => {
     setShowCreateModal(false);
+    setPagination(prev => ({ ...prev, page: 1 }));
     fetchTasks();
-    toast.success('Task created successfully');
   };
 
   const handleFilterChange = (newFilters) => {
+    console.log('Filters changed:', newFilters);
     setFilters(newFilters);
     setPagination(prev => ({ ...prev, page: 1 }));
   };
@@ -63,15 +80,13 @@ function TaskList() {
     navigate(`/tasks/${taskId}`);
   };
 
-  if (loading && tasks.length === 0) return <Loader />;
-
   return (
     <div className="task-list-page">
       <div className="header">
         <div>
           <h2>All Tasks</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-            {pagination.total} total tasks
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>
+            {loading ? 'Loading...' : `${pagination.total} total task${pagination.total !== 1 ? 's' : ''}`}
           </p>
         </div>
         <button onClick={() => setShowCreateModal(true)} className="btn-primary">
@@ -81,39 +96,58 @@ function TaskList() {
 
       <TaskFilters filters={filters} onFilterChange={handleFilterChange} />
 
-      <div className="tasks-grid">
-        {tasks.length === 0 ? (
-          <div className="empty-state">
-            <h3>No tasks found</h3>
-            <p>Try adjusting your filters or create a new task</p>
+      {loading && tasks.length === 0 ? (
+        <Loader />
+      ) : (
+        <>
+          <div className="tasks-grid">
+            {tasks.length === 0 ? (
+              <div className="empty-state">
+                <h3>No tasks found</h3>
+                <p>
+                  {Object.values(filters).some(f => f) 
+                    ? 'Try adjusting your filters' 
+                    : 'Create your first task to get started'}
+                </p>
+                {!Object.values(filters).some(f => f) && (
+                  <button 
+                    onClick={() => setShowCreateModal(true)} 
+                    className="btn-primary"
+                    style={{ marginTop: '16px' }}
+                  >
+                    + Create Task
+                  </button>
+                )}
+              </div>
+            ) : (
+              tasks.map(task => (
+                <div key={task.id} onClick={() => handleTaskClick(task.id)}>
+                  <TaskCard task={task} />
+                </div>
+              ))
+            )}
           </div>
-        ) : (
-          tasks.map(task => (
-            <div key={task.id} onClick={() => handleTaskClick(task.id)}>
-              <TaskCard task={task} />
-            </div>
-          ))
-        )}
-      </div>
 
-      {pagination.totalPages > 1 && (
-        <div className="pagination">
-          <button 
-            disabled={pagination.page === 1}
-            onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
-          >
-            ← Previous
-          </button>
-          <span style={{ color: 'var(--text-secondary)' }}>
-            Page {pagination.page} of {pagination.totalPages}
-          </span>
-          <button 
-            disabled={pagination.page === pagination.totalPages}
-            onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-          >
-            Next →
-          </button>
-        </div>
+          {pagination.totalPages > 1 && (
+            <div className="pagination">
+              <button 
+                disabled={pagination.page === 1}
+                onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+              >
+                ← Previous
+              </button>
+              <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
+                Page {pagination.page} of {pagination.totalPages}
+              </span>
+              <button 
+                disabled={pagination.page >= pagination.totalPages}
+                onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+              >
+                Next →
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       <Modal 

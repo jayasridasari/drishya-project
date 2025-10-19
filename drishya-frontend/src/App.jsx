@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
+import { useEffect } from 'react';
+import { initializeAuth } from './utils/auth';
 
 import Layout from './components/layout/Layout';
 import Login from './pages/Login';
@@ -15,6 +17,11 @@ import PrivateRoute from './routes/PrivateRoute';
 import AdminRoute from './routes/AdminRoute';
 
 function App() {
+  useEffect(() => {
+    // Initialize auth on app start
+    initializeAuth();
+  }, []);
+
   return (
     <BrowserRouter>
       <ToastContainer 

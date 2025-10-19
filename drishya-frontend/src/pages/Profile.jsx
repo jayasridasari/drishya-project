@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
 import api from '../services/api';
 import Loader from '../components/common/Loader';
 import { toast } from 'react-toastify';
@@ -9,62 +8,189 @@ function Profile() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
-
-  const { register: registerProfile, handleSubmit: handleProfileSubmit, setValue, formState: { isSubmitting: isProfileSubmitting } } = useForm();
-  const { register: registerPassword, handleSubmit: handlePasswordSubmit, reset: resetPassword, formState: { isSubmitting: isPasswordSubmitting } } = useForm();
+  
+  // Profile form state
+  const [profileForm, setProfileForm] = useState({ name: '', email: '' });
+  const [profileUpdating, setProfileUpdating] = useState(false);
+  
+  // Password form state
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordUpdating, setPasswordUpdating] = useState(false);
 
   useEffect(() => {
     fetchProfile();
   }, []);
 
   const fetchProfile = async () => {
+    console.log('=== FETCHING PROFILE ===');
     try {
       setLoading(true);
       const { data } = await api.get('/api/profile');
-      setProfile(data.profile);
-      setValue('name', data.profile.name);
-      setValue('email', data.profile.email);
+      console.log('Profile data received:', data);
+      
+      if (data.profile) {
+        setProfile(data.profile);
+        setProfileForm({
+          name: data.profile.name || '',
+          email: data.profile.email || ''
+        });
+      } else {
+        console.error('No profile data in response');
+        toast.error('Failed to load profile data');
+      }
     } catch (error) {
-      console.error('Failed to fetch profile:', error);
-      toast.error('Failed to fetch profile');
+      console.error('=== PROFILE FETCH ERROR ===');
+      console.error('Error:', error);
+      console.error('Response:', error.response?.data);
+      toast.error('Failed to load profile');
     } finally {
       setLoading(false);
     }
   };
 
-  const onProfileSubmit = async (data) => {
-    try {
-      await api.put('/api/profile', data);
-      toast.success('Profile updated successfully');
-      fetchProfile();
-    } catch (error) {
-      console.error('Failed to update profile:', error);
-      toast.error(error.response?.data?.error || 'Failed to update profile');
+  const handleProfileSubmit = async (e) => {
+    e.preventDefault();
+    
+    console.log('=== UPDATING PROFILE ===');
+    
+    if (!profileForm.name.trim()) {
+      toast.error('Name is required');
+      return;
     }
-  };
-
-  const onPasswordSubmit = async (data) => {
-    if (data.newPassword !== data.confirmPassword) {
-      toast.error('Passwords do not match');
+    
+    if (!profileForm.email.trim()) {
+      toast.error('Email is required');
       return;
     }
 
+    setProfileUpdating(true);
+
     try {
-      await api.put('/api/profile/password', {
-        currentPassword: data.currentPassword,
-        newPassword: data.newPassword
+      // Backend expects ONLY fields that are being updated
+      // It uses optional validation: name and email are optional
+      const payload = {
+        name: profileForm.name.trim(),
+        email: profileForm.email.trim()
+      };
+      
+      console.log('Sending profile update:', payload);
+      const { data } = await api.put('/api/profile', payload);
+      console.log('Profile update response:', data);
+      
+      toast.success('Profile updated successfully!');
+      await fetchProfile(); // Refresh profile data
+    } catch (error) {
+      console.error('=== PROFILE UPDATE ERROR ===');
+      console.error('Error:', error);
+      console.error('Response:', error.response?.data);
+      
+      // Handle express-validator errors
+      if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        error.response.data.errors.forEach(err => {
+          console.error('Validation error:', err);
+          toast.error(`${err.param}: ${err.msg}`);
+        });
+      } 
+      // Handle single error message
+      else if (error.response?.data?.error) {
+        toast.error(error.response.data.error);
+      }
+      // Network error
+      else if (error.request) {
+        toast.error('Cannot connect to server. Is your backend running on port 5000?');
+      }
+      // Other errors
+      else {
+        toast.error('Failed to update profile');
+      }
+    } finally {
+      setProfileUpdating(false);
+    }
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    
+    console.log('=== UPDATING PASSWORD ===');
+    
+    if (!passwordForm.currentPassword) {
+      toast.error('Current password is required');
+      return;
+    }
+    
+    if (passwordForm.newPassword.length < 8) {
+      toast.error('New password must be at least 8 characters');
+      return;
+    }
+    
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+
+    setPasswordUpdating(true);
+
+    try {
+      // Backend expects: currentPassword and newPassword
+      // Validation: newPassword must be min 8 characters
+      const payload = {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword
+      };
+      
+      console.log('Sending password update (not logging passwords for security)');
+      const { data } = await api.put('/api/profile/password', payload);
+      console.log('Password update response:', data);
+      
+      toast.success('Password updated successfully!');
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
       });
-      toast.success('Password updated successfully');
-      resetPassword();
       setShowPasswordForm(false);
     } catch (error) {
-      console.error('Failed to update password:', error);
-      toast.error(error.response?.data?.error || 'Failed to update password');
+      console.error('=== PASSWORD UPDATE ERROR ===');
+      console.error('Error:', error);
+      console.error('Response:', error.response?.data);
+      
+      // Handle express-validator errors
+      if (error.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+        error.response.data.errors.forEach(err => {
+          console.error('Validation error:', err);
+          toast.error(`${err.param}: ${err.msg}`);
+        });
+      }
+      // Handle single error (e.g., "Current password is incorrect")
+      else if (error.response?.data?.error) {
+        toast.error(error.response.data.error);
+      }
+      // Network error
+      else if (error.request) {
+        toast.error('Cannot connect to server. Is your backend running on port 5000?');
+      }
+      // Other errors
+      else {
+        toast.error('Failed to update password');
+      }
+    } finally {
+      setPasswordUpdating(false);
     }
   };
 
   if (loading) return <Loader />;
-  if (!profile) return <div>Failed to load profile</div>;
+  if (!profile) {
+    return (
+      <div className="empty-state">
+        <h3>Failed to load profile</h3>
+        <button onClick={fetchProfile} className="btn-primary">Retry</button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: '800px' }}>
@@ -73,6 +199,7 @@ function Profile() {
         <p>Manage your account settings and preferences</p>
       </div>
 
+      {/* Profile Info Card */}
       <div className="card" style={{ marginBottom: '24px' }}>
         <div style={{ 
           display: 'flex', 
@@ -97,7 +224,7 @@ function Profile() {
           </div>
           <div>
             <h2 style={{ fontSize: '24px', marginBottom: '8px' }}>{profile.name}</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '4px' }}>{profile.email}</p>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '8px' }}>{profile.email}</p>
             <span style={{
               display: 'inline-block',
               padding: '4px 12px',
@@ -115,42 +242,75 @@ function Profile() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
           <div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Account Status</div>
-            <div style={{ fontWeight: 600 }}>{profile.is_active ? 'Active' : 'Inactive'}</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 600 }}>
+              Account Status
+            </div>
+            <div style={{ fontWeight: 600, color: profile.is_active ? 'var(--success)' : 'var(--danger)' }}>
+              {profile.is_active ? 'Active' : 'Inactive'}
+            </div>
           </div>
           <div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Member Since</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 600 }}>
+              Member Since
+            </div>
             <div style={{ fontWeight: 600 }}>{formatDate(profile.created_at)}</div>
           </div>
           <div>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Role</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 600 }}>
+              Role
+            </div>
             <div style={{ fontWeight: 600, textTransform: 'capitalize' }}>{profile.role}</div>
           </div>
         </div>
       </div>
 
+      {/* Update Profile Form */}
       <div className="card" style={{ marginBottom: '24px' }}>
-        <h3 style={{ fontSize: '18px', marginBottom: '20px' }}>Update Profile</h3>
-        <form onSubmit={handleProfileSubmit(onProfileSubmit)}>
+        <h3 style={{ fontSize: '18px', marginBottom: '20px', fontWeight: 600 }}>Update Profile Information</h3>
+        <form onSubmit={handleProfileSubmit}>
           <div className="form-group">
-            <label>Name</label>
-            <input {...registerProfile('name')} type="text" />
+            <label htmlFor="profile-name">Full Name</label>
+            <input 
+              id="profile-name"
+              type="text" 
+              value={profileForm.name}
+              onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+              placeholder="Enter your name"
+              required
+            />
           </div>
           <div className="form-group">
-            <label>Email</label>
-            <input {...registerProfile('email')} type="email" />
+            <label htmlFor="profile-email">Email Address</label>
+            <input 
+              id="profile-email"
+              type="email" 
+              value={profileForm.email}
+              onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+              placeholder="Enter your email"
+              required
+            />
           </div>
-          <button type="submit" disabled={isProfileSubmitting} className="btn-primary">
-            {isProfileSubmitting ? 'Updating...' : 'Update Profile'}
+          <button 
+            type="submit" 
+            disabled={profileUpdating} 
+            className="btn-primary"
+          >
+            {profileUpdating ? 'Updating...' : 'Update Profile'}
           </button>
         </form>
       </div>
 
+      {/* Change Password Section */}
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h3 style={{ fontSize: '18px' }}>Change Password</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: 600 }}>Change Password</h3>
           <button 
-            onClick={() => setShowPasswordForm(!showPasswordForm)} 
+            onClick={() => {
+              setShowPasswordForm(!showPasswordForm);
+              if (showPasswordForm) {
+                setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+              }
+            }}
             className="btn-secondary"
           >
             {showPasswordForm ? 'Cancel' : 'Change Password'}
@@ -158,21 +318,51 @@ function Profile() {
         </div>
 
         {showPasswordForm && (
-          <form onSubmit={handlePasswordSubmit(onPasswordSubmit)}>
+          <form onSubmit={handlePasswordSubmit}>
             <div className="form-group">
-              <label>Current Password</label>
-              <input {...registerPassword('currentPassword')} type="password" required />
+              <label htmlFor="current-password">Current Password</label>
+              <input 
+                id="current-password"
+                type="password" 
+                value={passwordForm.currentPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                placeholder="Enter current password"
+                autoComplete="current-password"
+                required
+              />
             </div>
             <div className="form-group">
-              <label>New Password</label>
-              <input {...registerPassword('newPassword')} type="password" minLength="8" required />
+              <label htmlFor="new-password">New Password (min. 8 characters)</label>
+              <input 
+                id="new-password"
+                type="password" 
+                value={passwordForm.newPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                placeholder="Enter new password"
+                autoComplete="new-password"
+                minLength="8"
+                required
+              />
             </div>
             <div className="form-group">
-              <label>Confirm New Password</label>
-              <input {...registerPassword('confirmPassword')} type="password" minLength="8" required />
+              <label htmlFor="confirm-password">Confirm New Password</label>
+              <input 
+                id="confirm-password"
+                type="password" 
+                value={passwordForm.confirmPassword}
+                onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                placeholder="Confirm new password"
+                autoComplete="new-password"
+                minLength="8"
+                required
+              />
             </div>
-            <button type="submit" disabled={isPasswordSubmitting} className="btn-primary">
-              {isPasswordSubmitting ? 'Updating...' : 'Update Password'}
+            <button 
+              type="submit" 
+              disabled={passwordUpdating} 
+              className="btn-primary"
+            >
+              {passwordUpdating ? 'Updating Password...' : 'Update Password'}
             </button>
           </form>
         )}

@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import api, { setAccessToken } from '../../services/api';
+import api from '../../services/api';
+import { clearAuth } from '../../utils/auth';
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -8,26 +9,22 @@ export default function Navbar() {
   const user = userStr ? JSON.parse(userStr) : null;
 
   const handleLogout = async () => {
+    console.log('=== LOGOUT ===');
+    
     try {
       const refreshToken = localStorage.getItem('refreshToken');
       
       if (refreshToken) {
         await api.post('/api/auth/logout', { refreshToken });
       }
-      
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
-      setAccessToken(null);
-      
-      toast.success('Logged out successfully');
-      navigate('/login');
     } catch (error) {
-      console.error('Logout error:', error);
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
-      setAccessToken(null);
-      navigate('/login');
+      console.error('Logout API error (non-critical):', error);
     }
+    
+    // Clear auth regardless of API success
+    clearAuth();
+    toast.success('Logged out successfully');
+    navigate('/login', { replace: true });
   };
 
   const getInitials = (name) => {

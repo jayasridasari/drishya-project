@@ -20,17 +20,29 @@ function Register() {
   });
 
   const onSubmit = async (formData) => {
+    console.log('=== REGISTRATION ATTEMPT ===');
+    
     try {
       const response = await api.post('/api/auth/register', formData);
+      console.log('Registration response:', response.data);
+      
       const { user, accessToken, refreshToken } = response.data;
       
+      // CRITICAL: Set access token IMMEDIATELY
       setAccessToken(accessToken);
+      
+      // Store in localStorage
       localStorage.setItem('refreshToken', refreshToken);
       localStorage.setItem('user', JSON.stringify(user));
       
+      console.log('✅ Registration successful');
+      
       toast.success(`Welcome ${user.name}! Your account has been created.`);
-      navigate('/');
+      navigate('/', { replace: true });
     } catch (error) {
+      console.error('=== REGISTRATION ERROR ===');
+      console.error('Response:', error.response?.data);
+      
       if (error.response?.data?.errors) {
         error.response.data.errors.forEach(err => toast.error(`${err.param}: ${err.msg}`));
       } else if (error.response?.data?.error) {
