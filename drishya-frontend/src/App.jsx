@@ -17,7 +17,7 @@ import AdminRoute from './routes/AdminRoute';
 function App() {
   return (
     <BrowserRouter>
-      <ToastContainer />
+      <ToastContainer position="top-right" autoClose={3000} />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -30,6 +30,8 @@ function App() {
             <Route path="/tasks" element={<TaskList />} />
             <Route path="/tasks/:id" element={<TaskDetails />} />
             <Route path="/profile" element={<Profile />} />
+            
+            {/* Admin only routes */}
             <Route element={<AdminRoute />}>
               <Route path="/teams" element={<TeamManagement />} />
               <Route path="/users" element={<UserManagement />} />
