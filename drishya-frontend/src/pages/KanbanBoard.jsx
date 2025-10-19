@@ -177,7 +177,8 @@ function KanbanBoard() {
   return (
     <div>
       <div className="page-header">
-        <h1>Kanban Board</h1>
+        
+        <h1>Progress</h1>
         <p>Drag and drop tasks between columns</p>
       </div>
 
