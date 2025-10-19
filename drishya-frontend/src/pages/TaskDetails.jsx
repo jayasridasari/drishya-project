@@ -12,9 +12,10 @@ function TaskDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [task, setTask] = useState(null);
+  const [assigneeName, setAssigneeName] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -23,19 +24,46 @@ function TaskDetails() {
   }, [id]);
 
   const fetchTask = async () => {
+    console.log('=== FETCHING TASK DETAILS ===');
+    setLoading(true);
+    
     try {
-      setLoading(true);
-      console.log('Fetching task:', id);
       const { data } = await api.get(`/api/tasks/${id}`);
-      console.log('Task data:', data);
-      setTask(data.task);
+      console.log('Task response:', data);
+      
+      // Normalize response - handle both { task } and direct object
+      const taskData = data.task || data;
+      
+      if (!taskData || !taskData.id) {
+        throw new Error('Invalid task data');
+      }
+      
+      setTask(taskData);
+      
+      // Fetch assignee name if assignee_id exists
+      if (taskData.assignee_id) {
+        fetchAssigneeName(taskData.assignee_id);
+      } else {
+        setAssigneeName(null);
+      }
+      
     } catch (error) {
       console.error('Failed to fetch task:', error);
-      console.error('Error response:', error.response?.data);
       toast.error('Failed to load task');
       navigate('/tasks');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAssigneeName = async (userId) => {
+    try {
+      const { data } = await api.get(`/api/users/${userId}`);
+      const user = data.user || data;
+      setAssigneeName(user.name || user.email);
+    } catch (error) {
+      console.error('Failed to fetch assignee:', error);
+      setAssigneeName('Unknown User');
     }
   };
 
@@ -49,14 +77,13 @@ function TaskDetails() {
     setDeleting(true);
     
     try {
-      console.log('Deleting task:', id);
       await api.delete(`/api/tasks/${id}`);
       toast.success('Task deleted successfully');
       navigate('/tasks');
     } catch (error) {
       console.error('Failed to delete task:', error);
-      console.error('Error response:', error.response?.data);
-      toast.error('Failed to delete task');
+      toast.error(error.response?.data?.error || 'Failed to delete task');
+    } finally {
       setDeleting(false);
     }
   };
@@ -67,6 +94,7 @@ function TaskDetails() {
   };
 
   if (loading) return <Loader />;
+  
   if (!task) {
     return (
       <div className="empty-state">
@@ -118,9 +146,11 @@ function TaskDetails() {
             <h1 style={{ fontSize: '28px', marginBottom: '8px', lineHeight: '1.3' }}>
               {task.title}
             </h1>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-              Created {formatRelativeTime(task.created_at)}
-            </p>
+            {task.created_at && (
+              <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+                Created {formatRelativeTime(task.created_at)}
+              </p>
+            )}
           </div>
           <div style={{ display: 'flex', gap: '12px', flexShrink: 0 }}>
             <button 
@@ -226,7 +256,7 @@ function TaskDetails() {
               Assignee
             </div>
             <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 500 }}>
-              {task.assignee_id || 'Unassigned'}
+              {assigneeName || 'Unassigned'}
             </div>
           </div>
         </div>

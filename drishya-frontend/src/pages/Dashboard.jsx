@@ -1,24 +1,35 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import PriorityChart from '../components/charts/PriorityChart';
 import TaskCompletionChart from '../components/charts/TaskCompletionChart';
 import Loader from '../components/common/Loader';
+import { formatDate } from '../utils/formatters';
 
 function Dashboard() {
   const [stats, setStats] = useState(null);
+  const [overdueTasks, setOverdueTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchStats();
+    fetchDashboardData();
   }, []);
 
-  const fetchStats = async () => {
+  const fetchDashboardData = async () => {
     try {
-      const { data } = await api.get('/api/dashboard/stats');
-      setStats(data);
+      setLoading(true);
+      
+      // Fetch stats
+      const statsRes = await api.get('/api/dashboard/stats');
+      setStats(statsRes.data);
+      
+      // Fetch overdue tasks
+      const overdueRes = await api.get('/api/tasks/overdue');
+      setOverdueTasks(overdueRes.data.overdueTasks || []);
+      
     } catch (error) {
-      console.error('Failed to fetch dashboard stats:', error);
+      console.error('Failed to fetch dashboard data:', error);
     } finally {
       setLoading(false);
     }
@@ -56,6 +67,49 @@ function Dashboard() {
           <p className="stat-number">{stats.overdue}</p>
         </div>
       </div>
+
+      {/* NEW: Overdue Tasks Section */}
+      {overdueTasks.length > 0 && (
+        <div className="card" style={{ marginBottom: '24px', borderLeft: '4px solid var(--danger)' }}>
+          <h3 style={{ color: 'var(--danger)', marginBottom: '16px' }}>
+            ⚠️ Overdue Tasks ({overdueTasks.length})
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {overdueTasks.slice(0, 5).map(task => (
+              <div 
+                key={task.id} 
+                onClick={() => navigate(`/tasks/${task.id}`)}
+                style={{ 
+                  padding: '12px',
+                  background: 'var(--bg-primary)',
+                  borderRadius: 'var(--radius-md)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <div>
+                  <strong>{task.title}</strong>
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    Due: {formatDate(task.due_date)}
+                  </div>
+                </div>
+                <span className="badge priority-high">{task.priority}</span>
+              </div>
+            ))}
+          </div>
+          {overdueTasks.length > 5 && (
+            <button 
+              onClick={() => navigate('/tasks')} 
+              className="btn-secondary"
+              style={{ marginTop: '12px', width: '100%' }}
+            >
+              View All Overdue Tasks
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="charts-container">
         {stats.byPriority && stats.byPriority.length > 0 && (
