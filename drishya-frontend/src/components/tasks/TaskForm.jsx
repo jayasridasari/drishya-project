@@ -2,9 +2,10 @@ import { useForm } from 'react-hook-form';
 import api from '../../services/api';
 import { toast } from 'react-toastify';
 import { useState, useEffect } from 'react';
-
+import { useUser } from '../../context/UserContext';
 function TaskForm({ task = null, onSuccess }) {
   const isEdit = !!task;
+  const { isAdmin } = useUser(); // ✅ GET ADMIN STATUS
   const [users, setUsers] = useState([]);
   const [teams, setTeams] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -65,8 +66,10 @@ function TaskForm({ task = null, onSuccess }) {
   // Fetch users and teams
   useEffect(() => {
     fetchUsers();
-    fetchTeams();
-  }, []);
+    if (isAdmin) { // ✅ ONLY FETCH TEAMS IF ADMIN
+      fetchTeams();
+    }
+  }, [isAdmin]);
 
   const fetchUsers = async () => {
     try {
@@ -93,7 +96,7 @@ function TaskForm({ task = null, onSuccess }) {
   const onSubmit = async (formData) => {
     console.log('=== TASK FORM SUBMISSION ===');
     console.log('Form data:', formData);
-    
+    console.log('Is Admin:', isAdmin);
     // Validate due date
     if (formData.due_date && !validateDueDate(formData.due_date)) {
       toast.error('Due date cannot be in the past');
@@ -120,8 +123,16 @@ function TaskForm({ task = null, onSuccess }) {
         payload.assignee_id = formData.assignee_id;
       }
       
-      if (formData.team_id && formData.team_id !== '') {
-        payload.team_id = formData.team_id;
+      if (isAdmin) {
+        if (isEdit) {
+          // On edit: explicitly set or clear
+          payload.team_id = formData.team_id === '' ? null : formData.team_id;
+        } else {
+          // On create: only include if non-empty
+          if (formData.team_id && formData.team_id !== '') {
+            payload.team_id = formData.team_id;
+          }
+        }
       }
 
       console.log('Sending payload:', payload);
@@ -239,15 +250,17 @@ function TaskForm({ task = null, onSuccess }) {
         </div>
       </div>
 
-      <div className="form-group">
-        <label htmlFor="team_id">Team</label>
-        <select id="team_id" {...register('team_id')} disabled={submitting}>
-          <option value="">No team</option>
-          {teams.map(team => (
-            <option key={team.id} value={team.id}>{team.name}</option>
-          ))}
-        </select>
-      </div>
+      {isAdmin && (
+        <div className="form-group">
+          <label htmlFor="team_id">Team</label>
+          <select id="team_id" {...register('team_id')} disabled={submitting}>
+            <option value="">No team</option>
+            {teams.map(team => (
+              <option key={team.id} value={team.id}>{team.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <button 
         type="submit" 

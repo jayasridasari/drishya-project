@@ -4,6 +4,7 @@
  const { handleValidation } = require('../middleware/validation');
  const AuthController = require('../controllers/auth.controller');
  const router = express.Router();
+ const { authenticate } = require('../middleware/auth');
  router.post(
  '/register',
  body('email').isEmail().normalizeEmail(),
@@ -30,4 +31,13 @@
  handleValidation,
  AuthController.logout
  );
+ router.get('/me', authenticate, (req, res) => {
+    console.log('🔍 /api/auth/me called, user:', req.user); // Debug log
+  res.json({
+    id: req.user.id,
+    name: req.user.name,
+    email: req.user.email,
+    role: req.user.role
+  });
+});
 module.exports = router;

@@ -243,7 +243,14 @@ exports.create = async (req, res, next) => {
     } = req.body;
 
     const created_by = req.user.id;
+    const { role } = req.user;
     const id = uuidv4();
+// ✅ REJECT TEAM_ID FROM NON-ADMINS
+    if (team_id && role !== 'admin') {
+      return res.status(403).json({ 
+        error: 'Only admins can assign tasks to teams' 
+      });
+    }
 
     // Validate due date is not in the past
     if (due_date) {
@@ -338,6 +345,12 @@ exports.update = async (req, res, next) => {
     const { id } = req.params;
     const { role, id: userId } = req.user;
     const { title, description, status, priority, due_date, assignee_id, team_id } = req.body;
+ // ✅ REJECT TEAM_ID CHANGES FROM NON-ADMINS
+    if (team_id !== undefined && role !== 'admin') {
+      return res.status(403).json({ 
+        error: 'Only admins can assign tasks to teams' 
+      });
+    }
 
     // Check if task exists and user has access
     let checkSql = 'SELECT * FROM tasks WHERE id = $1';

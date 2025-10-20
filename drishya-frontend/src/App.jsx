@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import { useEffect } from 'react';
 import { initializeAuth } from './utils/auth';
-
+import { UserProvider } from './context/UserContext';
 import Layout from './components/layout/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -11,7 +11,7 @@ import KanbanBoard from './pages/KanbanBoard';
 import TaskList from './pages/TaskList';
 import TaskDetails from './pages/TaskDetails';
 import TeamManagement from './pages/TeamManagement';
-import UserManagement from './pages/UserManagement';
+import UserManagement from './pages/Usermanagement';
 import Profile from './pages/Profile';
 import PrivateRoute from './routes/PrivateRoute';
 import AdminRoute from './routes/AdminRoute';
@@ -23,6 +23,7 @@ function App() {
   }, []);
 
   return (
+    <UserProvider>
     <BrowserRouter>
       <ToastContainer 
         position="top-right" 
@@ -61,6 +62,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
+    </UserProvider>
   );
 }
 
