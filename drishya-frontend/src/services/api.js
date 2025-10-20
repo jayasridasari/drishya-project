@@ -55,10 +55,15 @@ api.interceptors.response.use(
     console.error('Status:', error.response?.status);
     console.error('Error data:', error.response?.data);
 
-    // If error is 401 and we haven't retried yet
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      console.log('🔄 Attempting token refresh...');
+    // FIX: Don't refresh auth tokens for login/register/refresh endpoints
+    const isAuthEndpoint =
+      originalRequest.url.includes('/api/auth/login') ||
+      originalRequest.url.includes('/api/auth/register') ||
+      originalRequest.url.includes('/api/auth/refresh');
 
+    // Only attempt refresh for protected APIs, not for login/register/refresh
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
+      console.log('🔄 Attempting token refresh...');
       if (isRefreshing) {
         console.log('⏳ Token refresh already in progress, queuing request...');
         return new Promise((resolve, reject) => {
@@ -76,7 +81,7 @@ api.interceptors.response.use(
 
       try {
         const refreshToken = localStorage.getItem('refreshToken');
-        
+
         if (!refreshToken) {
           console.error('❌ No refresh token found');
           throw new Error('No refresh token available');
@@ -86,9 +91,9 @@ api.interceptors.response.use(
         const { data } = await axios.post(
           `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/refresh`,
           { refreshToken },
-          { 
+          {
             headers: { 'Content-Type': 'application/json' },
-            withCredentials: true 
+            withCredentials: true
           }
         );
 
@@ -120,6 +125,7 @@ api.interceptors.response.use(
       }
     }
 
+    // For login and registration, just reject and let login page show the error from backend
     return Promise.reject(error);
   }
 );

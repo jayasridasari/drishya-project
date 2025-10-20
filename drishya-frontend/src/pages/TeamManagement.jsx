@@ -7,13 +7,17 @@ import { formatDate } from '../utils/formatters';
 
 function TeamManagement() {
   const [teams, setTeams] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
+  const [selectedUserId, setSelectedUserId] = useState('');
   const [formData, setFormData] = useState({ name: '', description: '' });
 
   useEffect(() => {
     fetchTeams();
+    fetchUsers();
   }, []);
 
   const fetchTeams = async () => {
@@ -26,6 +30,16 @@ function TeamManagement() {
       toast.error('Failed to fetch teams');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const { data } = await api.get('/api/users');
+      setUsers(data.users || data);
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+      toast.error('Failed to fetch users');
     }
   };
 
@@ -56,6 +70,64 @@ function TeamManagement() {
       console.error('Failed to fetch team details:', error);
       toast.error('Failed to fetch team details');
     }
+  };
+
+  // FIXED: Check if selectedTeam exists before using it
+  const handleAddMember = async (e) => {
+    e.preventDefault();
+    
+    if (!selectedTeam) {
+      toast.error('No team selected');
+      return;
+    }
+    
+    if (!selectedUserId) {
+      toast.error('Please select a user');
+      return;
+    }
+
+    try {
+      // Use selectedTeam.team.id directly
+      await api.post(`/api/teams/${selectedTeam.team.id}/members`, {
+        userId: selectedUserId
+      });
+      toast.success('Member added successfully');
+      setShowAddMemberModal(false);
+      setSelectedUserId('');
+      // Refresh team details
+      await viewTeamDetails(selectedTeam.team.id);
+    } catch (error) {
+      console.error('Failed to add member:', error);
+      toast.error(error.response?.data?.error || 'Failed to add member');
+    }
+  };
+
+  // FIXED: Check if selectedTeam exists
+  const handleRemoveMember = async (memberId) => {
+    if (!selectedTeam) {
+      toast.error('No team selected');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to remove this member?')) {
+      return;
+    }
+
+    try {
+      await api.delete(`/api/teams/${selectedTeam.team.id}/members/${memberId}`);
+      toast.success('Member removed successfully');
+      // Refresh team details
+      await viewTeamDetails(selectedTeam.team.id);
+    } catch (error) {
+      console.error('Failed to remove member:', error);
+      toast.error(error.response?.data?.error || 'Failed to remove member');
+    }
+  };
+
+  const getAvailableUsers = () => {
+    if (!selectedTeam) return users;
+    const memberIds = selectedTeam.members.map(m => m.id);
+    return users.filter(user => !memberIds.includes(user.id));
   };
 
   if (loading) return <Loader />;
@@ -145,10 +217,10 @@ function TeamManagement() {
         </form>
       </Modal>
 
-      {/* Team Details Modal */}
+      {/* Team Details Modal - Keep this open while Add Member modal is shown */}
       {selectedTeam && (
         <Modal 
-          visible={!!selectedTeam} 
+          visible={!!selectedTeam && !showAddMemberModal} 
           title={selectedTeam.team.name} 
           onClose={() => setSelectedTeam(null)}
         >
@@ -159,9 +231,24 @@ function TeamManagement() {
           </div>
           
           <div>
-            <h4 style={{ marginBottom: '16px', fontSize: '16px' }}>
-              Team Members ({selectedTeam.members.length})
-            </h4>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginBottom: '16px'
+            }}>
+              <h4 style={{ fontSize: '16px', margin: 0 }}>
+                Team Members ({selectedTeam.members.length})
+              </h4>
+              <button 
+                onClick={() => setShowAddMemberModal(true)}
+                className="btn-primary"
+                style={{ padding: '6px 12px', fontSize: '13px' }}
+              >
+                + Add Member
+              </button>
+            </div>
+            
             {selectedTeam.members.length === 0 ? (
               <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>No members yet</p>
             ) : (
@@ -184,17 +271,93 @@ function TeamManagement() {
                         {member.email}
                       </div>
                     </div>
-                    <span className="badge" style={{ 
-                      background: member.role === 'admin' ? 'var(--primary)' : 'var(--text-light)',
-                      color: 'white'
-                    }}>
-                      {member.role}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span className="badge" style={{ 
+                        background: member.role === 'admin' ? 'var(--primary)' : 'var(--text-light)',
+                        color: 'white'
+                      }}>
+                        {member.role}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveMember(member.id);
+                        }}
+                        style={{
+                          background: '#ef4444',
+                          color: 'white',
+                          border: 'none',
+                          padding: '6px 10px',
+                          borderRadius: 'var(--radius-sm)',
+                          cursor: 'pointer',
+                          fontSize: '12px',
+                          fontWeight: 500
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
+        </Modal>
+      )}
+
+      {/* Add Member Modal - Shows instead of Team Details */}
+      {selectedTeam && (
+        <Modal 
+          visible={showAddMemberModal} 
+          title={`Add Member to ${selectedTeam.team.name}`}
+          onClose={() => {
+            setShowAddMemberModal(false);
+            setSelectedUserId('');
+          }}
+        >
+          <form onSubmit={handleAddMember}>
+            <div className="form-group">
+              <label>Select User *</label>
+              <select
+                value={selectedUserId}
+                onChange={(e) => setSelectedUserId(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '14px'
+                }}
+              >
+                <option value="">Choose a user...</option>
+                {getAvailableUsers().map(user => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} ({user.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                type="button"
+                onClick={() => setShowAddMemberModal(false)}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  border: '1px solid var(--border-color)',
+                  background: 'white',
+                  borderRadius: 'var(--radius-md)',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="btn-primary" style={{ flex: 1 }}>
+                Add Member
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
     </div>

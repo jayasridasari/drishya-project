@@ -43,20 +43,20 @@ function Login() {
       // Navigate to dashboard
       navigate('/', { replace: true });
     } catch (error) {
-      console.error('=== LOGIN ERROR ===');
-      console.error('Error:', error);
-      console.error('Response:', error.response?.data);
-      
-      if (error.response?.data?.errors) {
-        error.response.data.errors.forEach(err => toast.error(`${err.param}: ${err.msg}`));
-      } else if (error.response?.data?.error) {
-        toast.error(error.response.data.error);
-      } else if (error.request) {
-        toast.error('Cannot connect to server. Check if backend is running on port 5000.');
-      } else {
-        toast.error(`Login failed: ${error.message}`);
-      }
-    }
+  if (error.response?.status === 401) {
+    toast.error('Invalid email or password'); // <-- Always show this on 401
+  } else if (error.response?.data?.errors) {
+    error.response.data.errors.forEach(err => toast.error(`${err.param}: ${err.msg}`));
+  } else if (error.response?.data?.error) {
+    toast.error(error.response.data.error); // For other server errors
+  } else if (error.request) {
+    toast.error('Cannot connect to server.');
+  } else {
+    toast.error(`Login failed: ${error.message}`);
+  }
+}
+
+
   };
 
   return (
