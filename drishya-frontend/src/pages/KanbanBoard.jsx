@@ -1,86 +1,127 @@
 import { useState, useEffect } from 'react';
-import { DndContext, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { DndContext, closestCenter, DragOverlay, PointerSensor, useSensor, useSensors, MouseSensor, TouchSensor } from '@dnd-kit/core';
+import { useDroppable } from '@dnd-kit/core';
+import { useDraggable } from '@dnd-kit/core';
 import api from '../services/api';
 import TaskCard from '../components/tasks/TaskCard';
 import Loader from '../components/common/Loader';
 import { toast } from 'react-toastify';
 
-// Sortable Task Card Component
-function SortableTaskCard({ task }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: task.id });
+// Draggable Task Card Component
+function DraggableTaskCard({ task }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: task.id,
+    data: { task }
+  });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
     opacity: isDragging ? 0.5 : 1,
+    cursor: 'grab',
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
       <TaskCard task={task} />
     </div>
   );
 }
 
 // Droppable Column Component
-function KanbanColumn({ status, tasks }) {
-  const taskIds = tasks.map(t => t.id);
+function DroppableColumn({ id, title, tasks, count }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: id,
+  });
+
+  const columnStyle = {
+    backgroundColor: isOver ? '#f0f9ff' : 'var(--bg-secondary)',
+    border: isOver ? '2px dashed var(--primary)' : '1px solid var(--border-color)',
+    borderRadius: 'var(--radius-md)',
+    padding: '20px',
+    minHeight: '500px',
+    flex: 1,
+    transition: 'all 0.2s',
+  };
 
   return (
-    <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
-      <div className="kanban-column">
-        <h3>
-          {status} <span className="count">{tasks.length}</span>
-        </h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {tasks.map((task) => (
-            <SortableTaskCard key={task.id} task={task} />
-          ))}
-          {tasks.length === 0 && (
-            <div className="empty-state" style={{ padding: '40px 20px' }}>
-              <p>No tasks</p>
-            </div>
-          )}
-        </div>
+    <div ref={setNodeRef} style={columnStyle}>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        marginBottom: '20px',
+        paddingBottom: '12px',
+        borderBottom: '2px solid var(--border-color)'
+      }}>
+        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>{title}</h3>
+        <span style={{ 
+          background: 'var(--primary)', 
+          color: 'white', 
+          padding: '4px 10px', 
+          borderRadius: '12px',
+          fontSize: '12px',
+          fontWeight: 600
+        }}>
+          {count}
+        </span>
       </div>
-    </SortableContext>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {tasks.length === 0 ? (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '40px 20px',
+            color: 'var(--text-secondary)',
+            fontSize: '14px'
+          }}>
+            No tasks
+          </div>
+        ) : (
+          tasks.map(task => (
+            <DraggableTaskCard key={task.id} task={task} />
+          ))
+        )}
+      </div>
+    </div>
   );
 }
 
 // Main Kanban Board Component
 function KanbanBoard() {
-  const [tasks, setTasks] = useState({ Todo: [], 'In Progress': [], Done: [] });
-  const [activeTask, setActiveTask] = useState(null);
+  const [board, setBoard] = useState({ Todo: [], 'In Progress': [], Done: [] });
   const [loading, setLoading] = useState(true);
+  const [activeTask, setActiveTask] = useState(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
       },
+    }),
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 8,
+      },
     })
   );
 
   useEffect(() => {
-    fetchTasks();
+    fetchBoard();
   }, []);
 
-  const fetchTasks = async () => {
+  const fetchBoard = async () => {
     try {
       setLoading(true);
       const { data } = await api.get('/api/kanban/board');
-      setTasks(data.board);
+      setBoard(data.board);
     } catch (error) {
-      console.error('Failed to fetch tasks:', error);
+      console.error('Failed to fetch board:', error);
       toast.error('Failed to load kanban board');
     } finally {
       setLoading(false);
@@ -89,97 +130,69 @@ function KanbanBoard() {
 
   const handleDragStart = (event) => {
     const { active } = event;
-    const task = Object.values(tasks)
-      .flat()
-      .find((t) => t.id === active.id);
-    setActiveTask(task);
+    setActiveTask(active.data.current?.task);
   };
 
   const handleDragEnd = async (event) => {
     const { active, over } = event;
     
+    setActiveTask(null);
+
     if (!over) {
-      setActiveTask(null);
+      console.log('❌ No drop target');
       return;
     }
 
     const taskId = active.id;
-    const overId = over.id;
-
-    // Find which column the task is being dropped into
-    let newStatus = null;
-    
-    // Check if dropped directly on a column
-    if (['Todo', 'In Progress', 'Done'].includes(overId)) {
-      newStatus = overId;
-    } else {
-      // Find the status of the task it was dropped on
-      for (const [status, statusTasks] of Object.entries(tasks)) {
-        if (statusTasks.some(t => t.id === overId)) {
-          newStatus = status;
-          break;
-        }
-      }
-    }
-
-    if (!newStatus) {
-      setActiveTask(null);
-      return;
-    }
+    const newStatus = over.id;
 
     // Find current status
     let currentStatus = null;
-    for (const [status, statusTasks] of Object.entries(tasks)) {
-      if (statusTasks.some(t => t.id === taskId)) {
+    for (const [status, tasks] of Object.entries(board)) {
+      if (tasks.find(t => t.id === taskId)) {
         currentStatus = status;
         break;
       }
     }
 
-    // If status hasn't changed, do nothing
     if (currentStatus === newStatus) {
-      setActiveTask(null);
+      console.log('✅ Task dropped in same column');
       return;
     }
 
-    // Optimistically update UI
-    setTasks((prev) => {
-      const allTasks = Object.values(prev).flat();
-      const task = allTasks.find((t) => t.id === taskId);
-      
-      return {
-        ...prev,
-        [currentStatus]: prev[currentStatus].filter((t) => t.id !== taskId),
-        [newStatus]: [...prev[newStatus], { ...task, status: newStatus }],
-      };
-    });
+    console.log(`📝 Moving task ${taskId} from "${currentStatus}" to "${newStatus}"`);
 
-    // Update backend
+    // Optimistic update
+    const task = board[currentStatus].find(t => t.id === taskId);
+    const updatedTask = { ...task, status: newStatus };
+
+    setBoard(prev => ({
+      ...prev,
+      [currentStatus]: prev[currentStatus].filter(t => t.id !== taskId),
+      [newStatus]: [...prev[newStatus], updatedTask]
+    }));
+
+    // Update on server
     try {
-      await api.patch(`/api/kanban/tasks/${taskId}/status`, { status: newStatus });
+      await api.patch(`/api/kanban/${taskId}/status`, { status: newStatus });
       toast.success(`Task moved to ${newStatus}`);
     } catch (error) {
-      console.error('Failed to update task status:', error);
+      console.error('❌ Failed to update task:', error);
       toast.error('Failed to update task status');
       // Revert on error
-      fetchTasks();
+      fetchBoard();
     }
-
-    setActiveTask(null);
-  };
-
-  const handleDragCancel = () => {
-    setActiveTask(null);
   };
 
   if (loading) return <Loader />;
 
   return (
-    <div>
-      <div className="page-header">
-        
-        <h1>Progress</h1>
-        <p>Drag and drop tasks between columns</p>
+    <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+      <div style={{ marginBottom: '24px' }}>
+        <h2 style={{ marginBottom: '8px' }}>Kanban Board</h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
+          Drag and drop tasks between columns
+        </p>
       </div>
 
       <DndContext
@@ -187,16 +200,38 @@ function KanbanBoard() {
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
-        onDragCancel={handleDragCancel}
       >
-        <div className="kanban">
-          <KanbanColumn status="Todo" tasks={tasks.Todo || []} />
-          <KanbanColumn status="In Progress" tasks={tasks['In Progress'] || []} />
-          <KanbanColumn status="Done" tasks={tasks.Done || []} />
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(3, 1fr)', 
+          gap: '20px' 
+        }}>
+          <DroppableColumn 
+            id="Todo" 
+            title="📋 To Do" 
+            tasks={board.Todo} 
+            count={board.Todo.length}
+          />
+          <DroppableColumn 
+            id="In Progress" 
+            title="🚀 In Progress" 
+            tasks={board['In Progress']} 
+            count={board['In Progress'].length}
+          />
+          <DroppableColumn 
+            id="Done" 
+            title="✅ Done" 
+            tasks={board.Done} 
+            count={board.Done.length}
+          />
         </div>
 
         <DragOverlay>
-          {activeTask ? <TaskCard task={activeTask} /> : null}
+          {activeTask ? (
+            <div style={{ cursor: 'grabbing', opacity: 0.8 }}>
+              <TaskCard task={activeTask} />
+            </div>
+          ) : null}
         </DragOverlay>
       </DndContext>
     </div>

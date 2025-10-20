@@ -1,26 +1,30 @@
-// src/routes/kanban.routes.js
- const express = require('express');
- const { body, param } = require('express-validator');
- const { authenticate } = require('../middleware/auth');
- const { handleValidation } = require('../middleware/validation');
- const KanbanController = require('../controllers/kanban.controller');
- const router = express.Router();
- router.get('/board', authenticate, KanbanController.getBoard);
- router.patch(
- '/tasks/:id/status',
- authenticate,
- param('id').isUUID(),
- body('status').isIn(['Todo','In Progress','Done']),
- handleValidation,
- KanbanController.updateStatus
- );
- router.patch(
- '/tasks/bulk-status',
- authenticate,
- body('updates').isArray(),
- body('updates.*.taskId').isUUID(),
- body('updates.*.status').isIn(['Todo','In Progress','Done']),
- handleValidation,
- KanbanController.bulkUpdate
- );
- module.exports = router;
+const express = require('express');
+const { body, param } = require('express-validator');
+const { authenticate } = require('../middleware/auth');
+const { handleValidation } = require('../middleware/validation');
+const KanbanController = require('../controllers/kanban.controller');
+const router = express.Router();
+
+// Get kanban board
+router.get('/board', authenticate, KanbanController.getBoard);
+
+// Update task status (for drag & drop)
+router.patch(
+  '/:id/status',
+  authenticate,
+  param('id').isUUID().withMessage('Invalid task ID'),
+  body('status').isIn(['Todo', 'In Progress', 'Done']).withMessage('Invalid status'),
+  handleValidation,
+  KanbanController.updateStatus
+);
+
+// Bulk update (optional - for future use)
+router.post(
+  '/bulk-update',
+  authenticate,
+  body('updates').isArray().withMessage('Updates must be an array'),
+  handleValidation,
+  KanbanController.bulkUpdate
+);
+
+module.exports = router;

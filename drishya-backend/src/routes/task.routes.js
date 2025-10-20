@@ -4,14 +4,14 @@ const { authenticate, requireAdmin } = require('../middleware/auth');
 const { handleValidation } = require('../middleware/validation');
 const TaskController = require('../controllers/task.controller');
 const router = express.Router();
-
+const KanbanController = require('../controllers/kanban.controller');
 // =====================================
 // TASK ROUTES
 // =====================================
 
 // Get all tasks (with role-based filtering)
 router.get('/', authenticate, TaskController.getAll);
-
+router.get('/kanban/board', authenticate, KanbanController.getBoard);
 // Advanced search with filters and pagination
 router.get('/search', authenticate, TaskController.search);
 
@@ -87,5 +87,12 @@ router.patch(
   handleValidation,
   TaskController.unassignTeam
 );
-
+router.patch(
+  '/kanban/:id/status',
+  authenticate,
+  param('id').isUUID(),
+  body('status').isIn(['Todo', 'In Progress', 'Done']),
+  handleValidation,
+  KanbanController.updateStatus
+);
 module.exports = router;
