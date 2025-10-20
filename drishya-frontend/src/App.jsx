@@ -11,7 +11,7 @@ import KanbanBoard from './pages/KanbanBoard';
 import TaskList from './pages/TaskList';
 import TaskDetails from './pages/TaskDetails';
 import TeamManagement from './pages/TeamManagement';
-import UserManagement from './pages/Usermanagement';
+import UserManagement from './pages/UserManagement';
 import Profile from './pages/Profile';
 import PrivateRoute from './routes/PrivateRoute';
 import AdminRoute from './routes/AdminRoute';

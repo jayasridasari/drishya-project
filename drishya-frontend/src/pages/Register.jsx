@@ -48,7 +48,7 @@ function Register() {
       } else if (error.response?.data?.error) {
         toast.error(error.response.data.error);
       } else if (error.request) {
-        toast.error('Cannot connect to server. Check if backend is running on port 5000.');
+        toast.error('Cannot connect to server. Check if backend is running on port 3000.');
       } else {
         toast.error(`Registration failed: ${error.message}`);
       }

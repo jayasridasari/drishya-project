@@ -17,7 +17,7 @@ const processQueue = (error, token = null) => {
 };
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
+  baseURL: import.meta.env.VITE_API_URL || '',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -89,7 +89,7 @@ api.interceptors.response.use(
 
         console.log('🔑 Calling refresh endpoint...');
         const { data } = await axios.post(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/refresh`,
+          `${import.meta.env.VITE_API_URL || ''}/api/auth/refresh`,
           { refreshToken },
           {
             headers: { 'Content-Type': 'application/json' },
