@@ -245,6 +245,11 @@ exports.create = async (req, res, next) => {
     const created_by = req.user.id;
     const { role } = req.user;
     const id = uuidv4();
+    // ✅ Auto-assign members to themselves if no assignee specified
+    let finalAssigneeId = assignee_id;
+    if (role !== 'admin' && !assignee_id) {
+      finalAssigneeId = created_by;
+    }
 // ✅ REJECT TEAM_ID FROM NON-ADMINS
     if (team_id && role !== 'admin') {
       return res.status(403).json({ 
@@ -345,28 +350,47 @@ exports.update = async (req, res, next) => {
     const { id } = req.params;
     const { role, id: userId } = req.user;
     const { title, description, status, priority, due_date, assignee_id, team_id } = req.body;
- // ✅ REJECT TEAM_ID CHANGES FROM NON-ADMINS
-    if (team_id !== undefined && role !== 'admin') {
-      return res.status(403).json({ 
-        error: 'Only admins can assign tasks to teams' 
-      });
-    }
 
-    // Check if task exists and user has access
-    let checkSql = 'SELECT * FROM tasks WHERE id = $1';
+    // ✅ Check if task exists and user has access (including team tasks)
+    let checkSql;
     const checkParams = [id];
 
-    if (role !== 'admin') {
-      checkSql += ' AND (assignee_id = $2 OR created_by = $2)';
+    if (role === 'admin') {
+      // Admins can edit any task
+      checkSql = 'SELECT * FROM tasks WHERE id = $1';
+    } else {
+      // Members can edit tasks:
+      // 1. Assigned to them
+      // 2. Created by them
+      // 3. Assigned to their team
+      checkSql = `
+        SELECT DISTINCT t.* 
+        FROM tasks t
+        LEFT JOIN team_members tm ON t.team_id = tm.team_id
+        WHERE t.id = $1 
+        AND (
+          t.assignee_id = $2 
+          OR t.created_by = $2 
+          OR tm.user_id = $2
+        )
+      `;
       checkParams.push(userId);
     }
 
     const taskCheck = await query(checkSql, checkParams);
+    
     if (!taskCheck.rows.length) {
       return res.status(404).json({ error: 'Task not found or access denied' });
     }
 
     const oldTask = taskCheck.rows[0];
+
+    // ✅ ONLY ADMINS can change team assignment
+    if (team_id !== undefined && role !== 'admin') {
+      return res.status(403).json({ 
+        error: 'Only admins can assign tasks to teams' 
+      });
+    }
 
     // Validate due date if provided
     if (due_date) {
@@ -414,7 +438,8 @@ exports.update = async (req, res, next) => {
       params.push(assignee_id);
     }
 
-    if (team_id !== undefined) {
+    // Only admins can update team_id
+    if (team_id !== undefined && role === 'admin') {
       updates.push(`team_id = $${++paramCount}`);
       params.push(team_id);
     }
@@ -430,7 +455,7 @@ exports.update = async (req, res, next) => {
 
     await query(updateSql, params);
 
-    console.log(`✅ Task updated: ${id}`);
+    console.log(`✅ Task updated: ${id} by user ${userId}`);
 
     // Send notification if assignee changed
     if (assignee_id !== undefined && assignee_id !== oldTask.assignee_id && assignee_id) {
@@ -451,6 +476,7 @@ exports.update = async (req, res, next) => {
     next(err);
   }
 };
+
 
 // =====================================
 // DELETE TASK

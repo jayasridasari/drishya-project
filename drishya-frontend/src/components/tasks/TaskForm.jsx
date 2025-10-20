@@ -3,14 +3,14 @@ import api from '../../services/api';
 import { toast } from 'react-toastify';
 import { useState, useEffect } from 'react';
 import { useUser } from '../../context/UserContext';
+
 function TaskForm({ task = null, onSuccess }) {
   const isEdit = !!task;
-  const { isAdmin } = useUser(); // ✅ GET ADMIN STATUS
+  const { user, isAdmin } = useUser();
   const [users, setUsers] = useState([]);
   const [teams, setTeams] = useState([]);
   const [submitting, setSubmitting] = useState(false);
 
-  // Safe date formatter
   const formatDateForInput = (dateString) => {
     if (!dateString) return '';
     try {
@@ -21,7 +21,6 @@ function TaskForm({ task = null, onSuccess }) {
     }
   };
 
-  // Due date validator
   const validateDueDate = (date) => {
     if (!date) return true;
     const selected = new Date(date);
@@ -33,16 +32,18 @@ function TaskForm({ task = null, onSuccess }) {
 
   const getDefaultValues = () => {
     if (!task) {
+      // ✅ For new tasks: default assignee is current user
       return {
         title: '',
         description: '',
         status: 'Todo',
         priority: 'Medium',
         due_date: '',
-        assignee_id: '',
+        assignee_id: user?.id || '', // Set to current user
         team_id: ''
       };
     }
+    // For editing existing tasks
     return {
       title: task.title || '',
       description: task.description || '',
@@ -54,7 +55,7 @@ function TaskForm({ task = null, onSuccess }) {
     };
   };
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm({
+  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm({
     defaultValues: getDefaultValues()
   });
 
@@ -63,10 +64,17 @@ function TaskForm({ task = null, onSuccess }) {
     reset(getDefaultValues());
   }, [task]);
 
+  // ✅ Set assignee to current user when creating new task
+  useEffect(() => {
+    if (!isEdit && user?.id) {
+      setValue('assignee_id', user.id);
+    }
+  }, [isEdit, user, setValue]);
+
   // Fetch users and teams
   useEffect(() => {
     fetchUsers();
-    if (isAdmin) { // ✅ ONLY FETCH TEAMS IF ADMIN
+    if (isAdmin) {
       fetchTeams();
     }
   }, [isAdmin]);
@@ -94,10 +102,6 @@ function TaskForm({ task = null, onSuccess }) {
   };
 
   const onSubmit = async (formData) => {
-    console.log('=== TASK FORM SUBMISSION ===');
-    console.log('Form data:', formData);
-    console.log('Is Admin:', isAdmin);
-    // Validate due date
     if (formData.due_date && !validateDueDate(formData.due_date)) {
       toast.error('Due date cannot be in the past');
       return;
@@ -106,7 +110,6 @@ function TaskForm({ task = null, onSuccess }) {
     setSubmitting(true);
 
     try {
-      // Build payload with proper null handling
       const payload = {
         title: formData.title.trim(),
         description: formData.description ? formData.description.trim() : '',
@@ -114,7 +117,6 @@ function TaskForm({ task = null, onSuccess }) {
         priority: formData.priority
       };
 
-      // Only add optional fields if they have values
       if (formData.due_date) {
         payload.due_date = formData.due_date;
       }
@@ -123,19 +125,16 @@ function TaskForm({ task = null, onSuccess }) {
         payload.assignee_id = formData.assignee_id;
       }
       
+      // Only include team_id if user is admin
       if (isAdmin) {
         if (isEdit) {
-          // On edit: explicitly set or clear
           payload.team_id = formData.team_id === '' ? null : formData.team_id;
         } else {
-          // On create: only include if non-empty
           if (formData.team_id && formData.team_id !== '') {
             payload.team_id = formData.team_id;
           }
         }
       }
-
-      console.log('Sending payload:', payload);
 
       let response;
       if (isEdit) {
@@ -146,7 +145,6 @@ function TaskForm({ task = null, onSuccess }) {
         toast.success('Task created successfully! ✅');
       }
       
-      console.log('Success:', response.data);
       reset(getDefaultValues());
       onSuccess();
       
@@ -241,9 +239,9 @@ function TaskForm({ task = null, onSuccess }) {
           <label htmlFor="assignee_id">Assignee</label>
           <select id="assignee_id" {...register('assignee_id')} disabled={submitting}>
             <option value="">Unassigned</option>
-            {users.map(user => (
-              <option key={user.id} value={user.id}>
-                {user.name}
+            {users.map(u => (
+              <option key={u.id} value={u.id}>
+                {u.name}
               </option>
             ))}
           </select>

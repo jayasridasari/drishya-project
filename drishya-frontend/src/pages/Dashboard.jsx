@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import PriorityChart from '../components/charts/PriorityChart';
-import TaskCompletionChart from '../components/charts/TaskCompletionChart';
+import DeadlineChart from '../components/charts/DeadlineChart';
 import Loader from '../components/common/Loader';
 import { formatDate } from '../utils/formatters';
 
@@ -20,11 +20,9 @@ function Dashboard() {
     try {
       setLoading(true);
       
-      // Fetch stats
       const statsRes = await api.get('/api/dashboard/stats');
       setStats(statsRes.data);
       
-      // Fetch overdue tasks
       const overdueRes = await api.get('/api/tasks/overdue');
       setOverdueTasks(overdueRes.data.overdueTasks || []);
       
@@ -68,7 +66,6 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* NEW: Overdue Tasks Section */}
       {overdueTasks.length > 0 && (
         <div className="card" style={{ marginBottom: '24px', borderLeft: '4px solid var(--danger)' }}>
           <h3 style={{ color: 'var(--danger)', marginBottom: '16px' }}>
@@ -112,6 +109,7 @@ function Dashboard() {
       )}
 
       <div className="charts-container">
+        {/* Priority Pie Chart */}
         {stats.byPriority && stats.byPriority.length > 0 && (
           <div className="chart-card">
             <h3>Task Priority Distribution</h3>
@@ -119,10 +117,11 @@ function Dashboard() {
           </div>
         )}
 
-        {stats.byStatus && stats.byStatus.length > 0 && (
+        {/* Deadline Bar Chart */}
+        {stats.deadlines && stats.deadlines.length > 0 && (
           <div className="chart-card">
-            <h3>Weekly Task Completion</h3>
-            <TaskCompletionChart data={stats.byStatus} />
+            <h3>Upcoming Deadlines (Next 14 Days)</h3>
+            <DeadlineChart data={stats.deadlines} />
           </div>
         )}
       </div>
