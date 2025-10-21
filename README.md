@@ -14,7 +14,7 @@ A full-stack task management application with Kanban board, JWT authentication, 
 ✅ Task search by title/description
 ✅ Dashboard with charts ( pie chart for priority, bar chart for deadlines)
 ✅ Team management
-✅ Responsive design for mobile/desktop
+✅ Responsive design for desktop
 ✅ Form validation (due date, required fields)
 ✅ Real-time updates across application
 ✅ Dockerized deployment
@@ -108,16 +108,16 @@ Open browser: http://localhost
 ## Screenshots
 
 ### Login Page
-![Login](screenshots/login.png)
+![Login] ( screenshots/Login.png )
 
 ### Kanban Board
-![Kanban](screenshots/kanban.png)
+![Kanban]( screenshots/Kanban.png )
 
 ### Dashboard
-![Dashboard](screenshots/dashboard.png)
+![Dashboard]( screenshots/Dashboard.png )
 
 ### Task Form
-![Task Form](screenshots/task-form.png)
+![Task Form]( screenshots/Task Form.png )
 
 
 ##Development Process
