@@ -1,4 +1,14 @@
 // src/app.js
+const cors = require('cors');
+
+app.use(cors({
+  origin: '*',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+app.options('*', cors());
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
@@ -20,14 +30,8 @@ const app = express();
 
 // Security & Middleware
 
-const cors = require('cors');
 
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+
 
 app.use(helmet());
 app.use(limiter);
