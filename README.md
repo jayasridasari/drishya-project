@@ -108,16 +108,16 @@ Open browser: http://localhost
 ## Screenshots
 
 ### Login Page
-![Login](screenshots/login.png)
+![Login](screenshots/Login.png)
 
 ### Kanban Board
-![Kanban](screenshots/kanban.png)
+![Kanban](screenshots/Kanban.png)
 
 ### Dashboard
-![Dashboard](screenshots/dashboard.png)
+![Dashboard](screenshots/Dashboard.png)
 
 ### Task Form
-![Task Form](screenshots/task-form.png)
+![Task Form](screenshots/TaskForm.png)
 
 
 ##Development Process
