@@ -19,12 +19,21 @@ const profileRoutes = require('./routes/profile.routes');
 const app = express();
 
 // Security & Middleware
+
+const cors = require('cors');
+
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://drishya-project.vercel.app'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(helmet());
 app.use(limiter);
-app.use(cors({ 
-  origin: ['http://https://drishya-project.onrender.com', 'http://localhost:5173'], 
-  credentials: true 
-}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
