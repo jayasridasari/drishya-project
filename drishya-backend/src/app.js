@@ -23,15 +23,12 @@ const app = express();
 const cors = require('cors');
 
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'https://drishya-project.vercel.app'
-  ],
+  origin: process.env.CORS_ORIGIN || '*',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(helmet());
 app.use(limiter);
 app.use(express.json());
