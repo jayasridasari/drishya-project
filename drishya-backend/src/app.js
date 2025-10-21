@@ -1,17 +1,7 @@
 // src/app.js
-const cors = require('cors');
-
-app.use(cors({
-  origin: '*',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
-app.options('*', cors());
 const express = require('express');
-const helmet = require('helmet');
 const cors = require('cors');
+const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const { limiter } = require('./middleware/rateLimit');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
@@ -28,11 +18,17 @@ const profileRoutes = require('./routes/profile.routes');
 
 const app = express();
 
+// CORS Configuration - MUST BE BEFORE OTHER MIDDLEWARE
+app.use(cors({
+  origin: '*',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+app.options('*', cors());
+
 // Security & Middleware
-
-
-
-
 app.use(helmet());
 app.use(limiter);
 app.use(express.json());
