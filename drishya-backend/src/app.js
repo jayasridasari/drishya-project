@@ -1,7 +1,7 @@
 // src/app.js
 const express = require('express');
-const cors = require('cors');
 const helmet = require('helmet');
+const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const { limiter } = require('./middleware/rateLimit');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
@@ -18,9 +18,9 @@ const profileRoutes = require('./routes/profile.routes');
 
 const app = express();
 
-// CORS Configuration - MUST BE BEFORE OTHER MIDDLEWARE
+// CORS Configuration
 app.use(cors({
-  origin: '*',
+  origin: ['https://drishya-project.vercel.app', 'http://localhost:5173', 'http://localhost:3000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
