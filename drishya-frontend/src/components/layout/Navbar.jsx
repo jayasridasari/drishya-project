@@ -38,9 +38,9 @@ export default function Navbar() {
         <h3>TaskFlow</h3>
       </div>
       
-      <div className="nav-search">
+      {/* <div className="nav-search">
         <input type="text" placeholder="Search tasks..." />
-      </div>
+      </div> */}
 
       <div className="nav-user">
         {user && (

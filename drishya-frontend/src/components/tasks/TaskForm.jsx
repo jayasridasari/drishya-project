@@ -235,7 +235,7 @@ function TaskForm({ task = null, onSuccess }) {
           </small>
         </div>
 
-        <div className="form-group">
+        {/* <div className="form-group">
           <label htmlFor="assignee_id">Assignee</label>
           <select id="assignee_id" {...register('assignee_id')} disabled={submitting}>
             <option value="">Unassigned</option>
@@ -245,7 +245,7 @@ function TaskForm({ task = null, onSuccess }) {
               </option>
             ))}
           </select>
-        </div>
+        </div> */}
       </div>
 
       {isAdmin && (

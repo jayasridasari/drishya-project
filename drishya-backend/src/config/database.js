@@ -1,4 +1,13 @@
 // src/config/database.js
+// console.log('DB env:', {
+//   DB_HOST: process.env.DB_HOST,
+//   DB_PORT: process.env.DB_PORT,
+//   DB_NAME: process.env.DB_NAME,
+//   DB_USER: process.env.DB_USER,
+//   DB_PASSWORD: process.env.DB_PASSWORD,
+//   type: typeof process.env.DB_PASSWORD
+// });
+
 const { Pool } = require('pg');
 const RETRY_INTERVAL = 3000;    // 3 seconds between attempts
 const MAX_RETRIES = 10;         // ~30 seconds max
