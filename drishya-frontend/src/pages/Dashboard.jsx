@@ -39,7 +39,7 @@ function Dashboard() {
   return (
     <div className="dashboard-page">
       <div className="page-header">
-        <h1>Project Dashboard</h1>
+        <h1>Dashboard</h1>
         <p>Manage your tasks and track progress</p>
       </div>
       
