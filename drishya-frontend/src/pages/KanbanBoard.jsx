@@ -44,7 +44,11 @@ function DroppableColumn({ id, title, tasks, count }) {
   };
 
   return (
-    <div ref={setNodeRef} style={columnStyle}>
+    <div
+      ref={setNodeRef}
+      data-testid={`kanban-${id.replace(/\s/g, '').toLowerCase()}-column`} // <-- ADD THIS LINE
+      style={columnStyle}
+    >
       <div style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
